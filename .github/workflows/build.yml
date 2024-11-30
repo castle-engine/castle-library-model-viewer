@@ -53,7 +53,7 @@ jobs:
         if: ${{ matrix.runner == 'windows-latest' }}
         run: echo "PATH=${PATH}:`cygpath --unix ${CASTLE_ENGINE_PATH}/tools/build-tool/`" >> $GITHUB_ENV
       - name: Castle Game Engine - Env PATH (non-Windows)
-        if: ${{ ! matrix.runner == 'windows-latest' }}
+        if: ${{ matrix.runner != 'windows-latest' }}
         run: echo "PATH=$PATH:$CASTLE_ENGINE_PATH/tools/build-tool/" >> $GITHUB_ENV
       - name: Castle Game Engine - Build
         run: cd $CASTLE_ENGINE_PATH/tools/build-tool/ && ./castle-engine_compile.sh
