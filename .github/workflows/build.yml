@@ -29,6 +29,13 @@ jobs:
           # last Intel-based macOS
           macos-12
         ]
+        include:
+        - runner: ubuntu-latest
+          library_extension: so
+        - runner: windows-latest
+          library_extension: dll
+        - runner: macos-12
+          library_extension: dylib
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -68,28 +75,11 @@ jobs:
           cd src/deprecated_library/
           ./castleengine_compile.sh
 
-      - name: Archive Artifacts (Linux)
-        if: ${{ matrix.runner == 'ubuntu-latest' }}
+      - name: Archive Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: linux-build
-          path: "*.so"
-          if-no-files-found: error
-
-      - name: Archive Artifacts (Windows)
-        if: ${{ matrix.runner == 'windows-latest' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-build
-          path: "*.dll"
-          if-no-files-found: error
-
-      - name: Archive Artifacts (macOS)
-        if: ${{ matrix.runner == 'macos-12' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-build
-          path: "*.dylib"
+          name: build-${{ matrix.runner }}
+          path: "src/deprecated_library/*.${{ matrix.library_extension }}"
           if-no-files-found: error
 
   release:
