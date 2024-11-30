@@ -160,7 +160,7 @@ jobs:
 
             # Install FPC and other Linux dependencies
             sudo apt-get update
-            sudo apt-get --no-install-recommends -y install libgl-dev fpc git git-lfs zip
+            sudo apt-get --no-install-recommends -y install fpc git zip
 
             # Set environment
             ARM_RUNNER_WORKSPACE=`pwd`
