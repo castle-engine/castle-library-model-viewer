@@ -54,6 +54,10 @@ jobs:
       #     sudo apt-get update
       #     sudo apt-get --no-install-recommends -y install libgl-dev
 
+      - name: Install Windows dependencies
+        if: ${{ matrix.runner == 'windows-latest' }}
+        run: choco install zip
+
       # Build Castle Game Engine and set related environment variables.
       - name: Castle Game Engine - Env CASTLE_ENGINE_PATH
         run: echo "CASTLE_ENGINE_PATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
