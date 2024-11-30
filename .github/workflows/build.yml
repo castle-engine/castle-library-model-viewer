@@ -19,9 +19,9 @@ defaults:
     shell: bash
 
 jobs:
-  # Make builds on "native" (not in Docker) runners.
+  # Make builds on "native" (not in some virtual environment visible to us) runners.
   build-native:
-    name: Build Native
+    name: Build (Native)
     strategy:
       matrix:
         runner: [
@@ -88,7 +88,7 @@ jobs:
 
   # Make builds on Docker runners.
   build-using-docker:
-    name: Build Using Docker
+    name: Build (Using Docker)
     runs-on: ubuntu-latest
     container: kambi/castle-engine-cloud-builds-tools:cge-unstable
     steps:
@@ -116,10 +116,80 @@ jobs:
           path: "*.zip"
           if-no-files-found: error
 
+  build-arm-runner:
+    name: Build (ARM Runner)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [armv7l, aarch64]
+        include:
+        # Raspberry Pi 32-bit (Arm), bullseye (older version, used on Raspberry Pi 4 by default)
+        - arch: armv7l
+          cpu: cortex-a7
+          base_image: dietpi:rpi_armv7_bullseye
+          cpu_info: cpuinfo/raspberrypi_3b
+        # Raspberry Pi 64-bit (Aarch64), latest (bookworm)
+        - arch: aarch64
+          cpu: cortex-a53
+          base_image: raspios_lite_arm64:latest
+          cpu_info: cpuinfo/raspberrypi_zero2_w_arm64_w
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: castle-engine/castle-engine
+
+      - uses: pguyot/arm-runner-action@v2
+        with:
+          base_image: ${{ matrix.base_image }}
+          cpu: ${{ matrix.cpu }}
+
+          shell: /bin/bash -eo pipefail
+          image_additional_mb: 6000
+          # Avoids the need for copy_artifact_path later.
+          bind_mount_repository: true
+          commands: |
+            # Useful string to grep logs, because log of script execution is somewhat buried in the middle of pguyot/arm-runner-action log
+            echo 'CGE script starts here'
+
+            # Show system info
+            uname -a
+
+            # Install FPC and other Linux dependencies
+            sudo apt-get update
+            sudo apt-get --no-install-recommends -y install libgl-dev fpc git git-lfs zip
+
+            # Set environment
+            ARM_RUNNER_WORKSPACE=`pwd`
+            export CASTLE_ENGINE_PATH=$ARM_RUNNER_WORKSPACE
+            export "PATH=${PATH}:/cge-work/installed/bin/"
+            FPC_OS=`fpc -iTO`
+            FPC_CPU=`fpc -iTP`
+
+            # Build CGE Tools
+            mkdir -p /cge-work/
+            cd "${CASTLE_ENGINE_PATH}"
+            rm -Rf /cge-work/installed/
+            mkdir -p /cge-work/installed/
+            make clean tools install PREFIX=/cge-work/installed/
+
+            # Build and Pack Library
+            cd "${CASTLE_ENGINE_PATH}/src/deprecated_library/"
+            castle-engine compile --verbose --os=${FPC_OS} --cpu=${FPC_CPU}
+            ZIP_NAME=castle-library-model-viewer_-${FPC_OS}-${FPC_CPU}.zip
+            zip -r ${ZIP_NAME} *.so
+            mv ${ZIP_NAME} ../../
+
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-raspberry-pi-${{ matrix.arch }}
+          path: "*.zip"
+          if-no-files-found: error
+
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [build-native, build-using-docker]
+    needs: [build-native, build-using-docker, build-arm-runner]
     steps:
     - name: Download packaged releases
       uses: actions/download-artifact@v4
