@@ -19,8 +19,9 @@ defaults:
     shell: bash
 
 jobs:
-  build:
-    name: Build
+  # Make builds on "native" (not in Docker) runners.
+  build-native:
+    name: Build Native
     strategy:
       matrix:
         runner: [
@@ -74,18 +75,51 @@ jobs:
         run: |
           cd src/deprecated_library/
           ./castleengine_compile.sh
+          ZIP_NAME=castle-library-model-viewer_-${FPC_OS}-${FPC_CPU}.zip
+          zip -r ${ZIP_NAME} *.${{ matrix.library_extension }}"
+          mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.runner }}
-          path: "src/deprecated_library/*.${{ matrix.library_extension }}"
+          name: build-native-${{ matrix.runner }}
+          path: "*.zip"
+          if-no-files-found: error
+
+  # Make builds on Docker runners.
+  build-using-docker:
+    name: Build Using Docker
+    runs-on: ubuntu-latest
+    container: kambi/castle-engine-cloud-builds-tools:cge-unstable
+    steps:
+      # Although CGE is already available in the container,
+      # check it out again, to be prepared for future when library code
+      # will move to this repo (castle-engine/castle-library-model-viewer).
+      - uses: actions/checkout@v4
+        with:
+          repository: castle-engine/castle-engine
+
+      - name: Build Win32
+        run: |
+          cd src/deprecated_library/
+          TARGET_OS=win32
+          TARGET_CPU=i386
+          castle-engine compile --verbose --os=$TARGET_OS --cpu=$TARGET_CPU
+          ZIP_NAME=castle-library-model-viewer_-${TARGET_OS}-${TARGET_CPU}.zip
+          zip -r ${ZIP_NAME} *.dll"
+          mv ${ZIP_NAME} ../../
+
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-docker-win32
+          path: "*.zip"
           if-no-files-found: error
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [build]
+    needs: [build-native, build-using-docker]
     steps:
     - name: Download packaged releases
       uses: actions/download-artifact@v4
