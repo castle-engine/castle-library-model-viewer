@@ -79,7 +79,7 @@ jobs:
         run: |
           cd src/deprecated_library/
           ./castleengine_compile.sh
-          ZIP_NAME=castle-library-model-viewer_-${FPC_OS}-${FPC_CPU}.zip
+          ZIP_NAME=castle-library-model-viewer_${FPC_OS}-${FPC_CPU}.zip
           zip -r ${ZIP_NAME} *.${{ matrix.library_extension }}
           mv ${ZIP_NAME} ../../
 
@@ -109,7 +109,7 @@ jobs:
           TARGET_OS=win32
           TARGET_CPU=i386
           castle-engine compile --verbose --os=$TARGET_OS --cpu=$TARGET_CPU
-          ZIP_NAME=castle-library-model-viewer_-${TARGET_OS}-${TARGET_CPU}.zip
+          ZIP_NAME=castle-library-model-viewer_${TARGET_OS}-${TARGET_CPU}.zip
           zip -r ${ZIP_NAME} *.dll
           mv ${ZIP_NAME} ../../
 
@@ -178,7 +178,7 @@ jobs:
             # Build and Pack Library
             cd "${CASTLE_ENGINE_PATH}/src/deprecated_library/"
             castle-engine compile --verbose --os=${FPC_OS} --cpu=${FPC_CPU}
-            ZIP_NAME=castle-library-model-viewer_-${FPC_OS}-${FPC_CPU}.zip
+            ZIP_NAME=castle-library-model-viewer_${FPC_OS}-${FPC_CPU}.zip
             zip -r ${ZIP_NAME} *.so
             mv ${ZIP_NAME} ../../
 
@@ -207,7 +207,7 @@ jobs:
     # Releases files in the "snapshot" release.
     - name: Release Artifacts
       if: ${{ github.ref == 'refs/heads/master' }}
-      run: gh release --repo ${{ github.repository }} upload snapshot --clobber *.zip *.tar.gz *.apk
+      run: gh release --repo ${{ github.repository }} upload snapshot --clobber *.zip
       env:
         GH_TOKEN: ${{ github.token }}
 
