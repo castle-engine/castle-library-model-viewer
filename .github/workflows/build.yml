@@ -165,16 +165,15 @@ jobs:
             # Set environment
             ARM_RUNNER_WORKSPACE=`pwd`
             export CASTLE_ENGINE_PATH=$ARM_RUNNER_WORKSPACE
-            export "PATH=${PATH}:/cge-work/installed/bin/"
+            export "PATH=${PATH}:/bin/"
             FPC_OS=`fpc -iTO`
             FPC_CPU=`fpc -iTP`
 
             # Build CGE Tools
-            mkdir -p /cge-work/
-            cd "${CASTLE_ENGINE_PATH}"
-            rm -Rf /cge-work/installed/
-            mkdir -p /cge-work/installed/
-            make clean tools install PREFIX=/cge-work/installed/
+            mkdir -p /bin/
+            cd "${CASTLE_ENGINE_PATH}"/tools/build-tool/
+            ./castle-engine_compile.sh
+            mv -f castle-engine /bin/
 
             # Build and Pack Library
             cd "${CASTLE_ENGINE_PATH}/src/deprecated_library/"
