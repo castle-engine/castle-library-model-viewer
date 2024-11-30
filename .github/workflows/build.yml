@@ -76,7 +76,7 @@ jobs:
           cd src/deprecated_library/
           ./castleengine_compile.sh
           ZIP_NAME=castle-library-model-viewer_-${FPC_OS}-${FPC_CPU}.zip
-          zip -r ${ZIP_NAME} *.${{ matrix.library_extension }}"
+          zip -r ${ZIP_NAME} *.${{ matrix.library_extension }}
           mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
@@ -106,7 +106,7 @@ jobs:
           TARGET_CPU=i386
           castle-engine compile --verbose --os=$TARGET_OS --cpu=$TARGET_CPU
           ZIP_NAME=castle-library-model-viewer_-${TARGET_OS}-${TARGET_CPU}.zip
-          zip -r ${ZIP_NAME} *.dll"
+          zip -r ${ZIP_NAME} *.dll
           mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
