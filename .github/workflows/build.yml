@@ -27,15 +27,15 @@ jobs:
         runner: [
           ubuntu-latest,
           windows-latest,
-          # last Intel-based macOS
-          macos-12
+          macos-13
         ]
         include:
         - runner: ubuntu-latest
           library_extension: so
         - runner: windows-latest
           library_extension: dll
-        - runner: macos-12
+        # FPC by default will make Intel-based binaries on this macOS.
+        - runner: macos-13
           library_extension: dylib
     runs-on: ${{ matrix.runner }}
     steps:
