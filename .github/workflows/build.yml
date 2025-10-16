@@ -27,15 +27,14 @@ jobs:
         runner: [
           ubuntu-latest,
           windows-latest,
-          macos-13
+          macos-15-intel
         ]
         include:
         - runner: ubuntu-latest
           library_extension: so
         - runner: windows-latest
           library_extension: dll
-        # FPC by default will make Intel-based binaries on this macOS.
-        - runner: macos-13
+        - runner: macos-15-intel
           library_extension: dylib
     runs-on: ${{ matrix.runner }}
     steps:
@@ -45,8 +44,13 @@ jobs:
 
       - name: Install FPC+Lazarus
         uses: gcarreno/setup-lazarus@v3.3.1
+        if: ${{ matrix.runner != 'macos-15-intel' }}
         with:
           lazarus-version: stable
+      - name: Install FPC (brew)
+        if: ${{ matrix.runner == 'macos-15-intel' }}
+        run: |
+          brew install fpc
 
       # - name: Install Linux dependencies
       #   if: ${{ matrix.runner == 'ubuntu-latest' }}
