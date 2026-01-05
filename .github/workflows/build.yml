@@ -43,7 +43,7 @@ jobs:
           repository: castle-engine/castle-engine
 
       - name: Install FPC+Lazarus
-        uses: gcarreno/setup-lazarus@v3.3.1
+        uses: gcarreno/setup-lazarus@v3.4.0
         if: ${{ matrix.runner != 'macos-15-intel' }}
         with:
           lazarus-version: stable
