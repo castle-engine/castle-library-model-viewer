@@ -27,7 +27,8 @@ jobs:
         runner: [
           ubuntu-latest,
           windows-latest,
-          macos-15-intel
+          macos-15-intel,
+          macos-latest
         ]
         include:
         - runner: ubuntu-latest
@@ -36,6 +37,8 @@ jobs:
           library_extension: dll
         - runner: macos-15-intel
           library_extension: dylib
+        - runner: macos-latest
+          library_extension: dylib
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
@@ -43,36 +46,16 @@ jobs:
           repository: castle-engine/castle-engine
 
       - name: Install FPC+Lazarus
-        uses: gcarreno/setup-lazarus@v3.4.0
-        if: ${{ matrix.runner != 'macos-15-intel' }}
-        with:
-          lazarus-version: stable
-      - name: Install FPC (brew)
-        if: ${{ matrix.runner == 'macos-15-intel' }}
         run: |
-          brew install fpc
-
-      # - name: Install Linux dependencies
-      #   if: ${{ matrix.runner == 'ubuntu-latest' }}
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get --no-install-recommends -y install libgl-dev
+          cd /tmp/ # temporary directory, to be separate from the current project files
+          git clone https://github.com/castle-engine/castle-build-ci.git \
+            --depth=1 --single-branch --branch=master
+          castle-build-ci/install_dependencies
+          castle-build-ci/setup_castle_engine
 
       - name: Install Windows dependencies
         if: ${{ matrix.runner == 'windows-latest' }}
         run: choco install zip
-
-      # Build Castle Game Engine and set related environment variables.
-      - name: Castle Game Engine - Env CASTLE_ENGINE_PATH
-        run: echo "CASTLE_ENGINE_PATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
-      - name: Castle Game Engine - Env PATH (Windows)
-        if: ${{ matrix.runner == 'windows-latest' }}
-        run: echo "PATH=${PATH}:`cygpath --unix ${CASTLE_ENGINE_PATH}/tools/build-tool/`" >> $GITHUB_ENV
-      - name: Castle Game Engine - Env PATH (non-Windows)
-        if: ${{ matrix.runner != 'windows-latest' }}
-        run: echo "PATH=$PATH:$CASTLE_ENGINE_PATH/tools/build-tool/" >> $GITHUB_ENV
-      - name: Castle Game Engine - Build
-        run: cd $CASTLE_ENGINE_PATH/tools/build-tool/ && ./castle-engine_compile.sh
 
       - name: Set environment FPC_OS
         run: echo "FPC_OS="`fpc -iTO` >> $GITHUB_ENV
@@ -159,25 +142,22 @@ jobs:
             # Useful string to grep logs, because log of script execution is somewhat buried in the middle of pguyot/arm-runner-action log
             echo 'CGE script starts here'
 
-            # Show system info
-            uname -a
-
-            # Install FPC and other Linux dependencies
+            # Install Linux dependencies
             sudo apt-get update
-            sudo apt-get --no-install-recommends -y install fpc git zip
+            sudo apt-get --no-install-recommends -y install git zip
+
+            # Install FPC and CGE
+            pushd /tmp/
+            git clone https://github.com/castle-engine/castle-build-ci.git \
+              --depth=1 --single-branch --branch=master
+            castle-build-ci/install_dependencies
+            castle-build-ci/setup_castle_engine
+            source setup_castle_engine_env.sh
+            popd
 
             # Set environment
-            ARM_RUNNER_WORKSPACE=`pwd`
-            export CASTLE_ENGINE_PATH=$ARM_RUNNER_WORKSPACE
-            export "PATH=${PATH}:/bin/"
             FPC_OS=`fpc -iTO`
             FPC_CPU=`fpc -iTP`
-
-            # Build CGE Tools
-            mkdir -p /bin/
-            cd "${CASTLE_ENGINE_PATH}"/tools/build-tool/
-            ./castle-engine_compile.sh
-            mv -f castle-engine /bin/
 
             # Build and Pack Library
             cd "${CASTLE_ENGINE_PATH}/src/deprecated_library/"
