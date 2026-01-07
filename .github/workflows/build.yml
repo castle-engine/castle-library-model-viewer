@@ -160,7 +160,7 @@ jobs:
             FPC_CPU=`fpc -iTP`
 
             # Build and Pack Library
-            cd src/deprecated_library/"
+            cd src/deprecated_library/
             castle-engine compile --verbose --os=${FPC_OS} --cpu=${FPC_CPU}
             ZIP_NAME=castle-library-model-viewer_${FPC_OS}-${FPC_CPU}.zip
             zip -r ${ZIP_NAME} *.so
