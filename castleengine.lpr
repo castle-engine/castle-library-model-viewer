@@ -41,6 +41,8 @@ uses CTypes, Math, SysUtils, CastleUtils,
 
 type
   ppcchar = ^pcchar;
+  TCgeLibraryCallbackProc = function (ContextHandle: cInt32; eCode: cInt32; iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
+
   TLibraryContext = class;
 
   TCrosshairManager = class(TObject)
@@ -71,6 +73,7 @@ type
     PreviousNavigationType: TNavigationType;
     TouchNavigation: TCastleTouchNavigation;
     Crosshair: TCrosshairManager;
+    LibraryCallbackProc: TCgeLibraryCallbackProc;
 
     constructor Create;
     destructor Destroy; override;
@@ -104,6 +107,22 @@ begin
   begin
     Ctx := TLibraryContext(ContextList[I]);
     if Ctx.Handle = ContextHandle then
+      exit(Ctx);
+  end;
+end;
+
+function CGE_FindContextByWindow(Window: TCastleWindow): TLibraryContext;
+var
+  I: Integer;
+  Ctx: TLibraryContext;
+begin
+  Result := nil;
+  if (ContextList = nil) or (ContextList.Count = 0) then
+    exit;
+  for I := 0 to ContextList.Count - 1 do
+  begin
+    Ctx := TLibraryContext(ContextList[I]);
+    if Ctx.Window = Window then
       exit(Ctx);
   end;
 end;
@@ -324,9 +343,40 @@ begin
   end;
 end;
 
-procedure CGE_SetLibraryCallbackProc(aProc: TLibraryCallbackProc); cdecl;
+function CGE_InternalLibraryCallback(eCode, iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
+var
+  Ctx: TLibraryContext;
+  Window: TCastleWindow;  // this should be a function parameter
+  I: Integer;
 begin
-  CGEApp_SetLibraryCallbackProc(aProc);
+  Window := Application.MainWindow; // TODO: extend TLibraryCallbackProc with Window (Sender) parameter
+  if Window = nil then
+  begin
+    // when Window is nil, pass to all callbacks
+    for I := 0 to ContextList.Count - 1 do
+    begin
+      Ctx := TLibraryContext(ContextList[I]);
+      if Assigned(Ctx.LibraryCallbackProc) then
+        Ctx.LibraryCallbackProc(-1, eCode, iParam1, iParam2, szParam);
+    end;
+    Result := 0;
+    exit;
+  end;
+  Ctx := CGE_FindContextByWindow(Window);
+  if (Ctx <> nil) and Assigned(Ctx.LibraryCallbackProc) then
+    Result := Ctx.LibraryCallbackProc(Ctx.Handle, eCode, iParam1, iParam2, szParam)
+  else
+    Result := 0;
+end;
+
+procedure CGE_SetLibraryCallbackProc(ContextHandle: cInt32; aProc: TCgeLibraryCallbackProc); cdecl;
+var
+  Ctx: TLibraryContext;
+begin
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if not CGE_VerifyWindow('CGE_SetLibraryCallbackProc', Ctx) then exit;
+  Ctx.LibraryCallbackProc := aProc;
+  CGEApp_SetLibraryCallbackProc(@CGE_InternalLibraryCallback);
 end;
 
 procedure CGE_Update(ContextHandle: cInt32); cdecl;
@@ -342,14 +392,14 @@ begin
     if Ctx.PreviousNavigationType <> Ctx.Viewport.NavigationType then
     begin
       Ctx.PreviousNavigationType := Ctx.Viewport.NavigationType;
-      if Assigned(LibraryCallbackProc) then
+      if Assigned(Ctx.LibraryCallbackProc) then
       begin
         case Ctx.Viewport.NavigationType of
-          ntWalk     : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavWalk     , 0, nil);
-          ntFly      : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavFly      , 0, nil);
-          ntExamine  : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavExamine  , 0, nil);
-          ntTurntable: LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavTurntable, 0, nil);
-          ntNone     : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavNone     , 0, nil);
+          ntWalk     : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavWalk     , 0, nil);
+          ntFly      : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavFly      , 0, nil);
+          ntExamine  : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavExamine  , 0, nil);
+          ntTurntable: Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavTurntable, 0, nil);
+          ntNone     : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavNone     , 0, nil);
           // nt2D: TODO
           else WritelnWarning('Window', 'Current NavigationType cannot be expressed as enum for ecgelibNavigationTypeChanged');
         end;

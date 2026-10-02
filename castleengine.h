@@ -319,7 +319,7 @@ enum ECgeUrlProcessing
   ecgeurlProcessingCopyToOutputDir      = 4,
 };
 
-typedef int (CDECL *TCgeLibraryCallback)(int /*ECgeLibCallbackCode*/eCode, int iParam1, int iParam2, const char *szParam);
+typedef int (CDECL *TCgeLibraryCallback)(int contextHandle, int /*ECgeLibCallbackCode*/eCode, int iParam1, int iParam2, const char *szParam);
 
 
 //-----------------------------------------------------------------------------
@@ -340,7 +340,7 @@ extern void CGE_GetCastleEngineVersion(char *szBuffer, int nBufSize);      // sz
 extern void CGE_Resize(int contextHandle, unsigned uiViewWidth, unsigned uiViewHeight);       // let the library know about the viewport size changes
 extern void CGE_Render(int contextHandle);                                                  // paints the 3d scene into the context
 extern void CGE_SaveScreenshotToFile(int contextHandle, const char *szFile);
-extern void CGE_SetLibraryCallbackProc(TCgeLibraryCallback pProc);     // set callback function
+extern void CGE_SetLibraryCallbackProc(int contextHandle, TCgeLibraryCallback pProc);     // set callback function
 extern void CGE_Update(int contextHandle);                                                  // let the 3d engine perform the animations, etc
 
 extern void CGE_MouseDown(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);    // [0,0] is the bottom-left corner!

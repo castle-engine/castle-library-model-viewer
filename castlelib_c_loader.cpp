@@ -54,7 +54,7 @@ typedef void (CDECL *PFNRD_CGE_GetCastleEngineVersion)(char *szBuffer, int nBufS
 typedef void (CDECL *PFNRD_CGE_Resize)(int contextHandle, unsigned uiViewWidth, unsigned uiViewHeight);
 typedef void (CDECL *PFNRD_CGE_Render)(int contextHandle);
 typedef void (CDECL *PFNRD_CGE_SaveScreenshotToFile)(int contextHandle, const char *szFile);
-typedef void (CDECL *PFNRD_CGE_SetLibraryCallbackProc)(TCgeLibraryCallback pProc);
+typedef void (CDECL *PFNRD_CGE_SetLibraryCallbackProc)(int contextHandle, TCgeLibraryCallback pProc);
 typedef void (CDECL *PFNRD_CGE_Update)(int contextHandle);
 
 typedef void (CDECL *PFNRD_CGE_MouseDown)(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
@@ -339,10 +339,10 @@ void CGE_SaveScreenshotToFile(int contextHandle, const char *szFile)
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetLibraryCallbackProc(TCgeLibraryCallback pProc)
+void CGE_SetLibraryCallbackProc(int contextHandle, TCgeLibraryCallback pProc)
 {
     if (pfrd_CGE_SetLibraryCallbackProc!=NULL)
-        (*pfrd_CGE_SetLibraryCallbackProc)(pProc);
+        (*pfrd_CGE_SetLibraryCallbackProc)(contextHandle, pProc);
 }
 
 //-----------------------------------------------------------------------------

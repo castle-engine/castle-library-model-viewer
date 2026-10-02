@@ -67,7 +67,7 @@ void GLWidget::CloseCGEContext()
     }
 }
 
-int CDECL GLWidget::OpenGlLibraryCallback(int eCode, int iParam1, int iParam2, const char *szParam)
+int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iParam1, int iParam2, const char *szParam)
 {
     if (g_pThis == NULL || !g_pThis->m_bAfterInit) return 0;
 
@@ -121,7 +121,7 @@ void GLWidget::initializeGL()
     CGE_Initialize(configDir.toUtf8());
     m_iCgeContext = CGE_Open(ecgeofLog, width()*dPixRatio, height()*dPixRatio, logicalDpiY());
     CGE_SetAutoTouchInterface(m_iCgeContext, false);
-    CGE_SetLibraryCallbackProc(OpenGlLibraryCallback);
+    CGE_SetLibraryCallbackProc(m_iCgeContext, OpenGlLibraryCallback);
     m_bAfterInit = true;
     if (!m_sSceneToOpen.isEmpty())
         OpenScene(m_sSceneToOpen);
