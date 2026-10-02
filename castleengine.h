@@ -332,79 +332,79 @@ extern void CGE_LoadLibrary(void);	// function defined in the loader CPP file
 extern void CGE_Initialize(const char *applicationConfigDirectory);
 extern void CGE_Finalize(void);
 
-extern void CGE_Open(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi);
-extern void CGE_Close(bool quitWhenLastWindowClosed);
+extern int CGE_Open(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi); // returns context handle, or -1 on failure
+extern void CGE_Close(int contextHandle, bool quitWhenLastWindowClosed);
 extern void CGE_GetOpenGLInformation(char *szBuffer, int nBufSize);        // szBuffer is filled inside the function with max size of nBufSize
 extern void CGE_GetCastleEngineVersion(char *szBuffer, int nBufSize);      // szBuffer is filled inside the function with max size of nBufSize
 
-extern void CGE_Resize(unsigned uiViewWidth, unsigned uiViewHeight);       // let the library know about the viewport size changes
-extern void CGE_Render(void);                                                  // paints the 3d scene into the context
-extern void CGE_SaveScreenshotToFile(const char *szFile);
+extern void CGE_Resize(int contextHandle, unsigned uiViewWidth, unsigned uiViewHeight);       // let the library know about the viewport size changes
+extern void CGE_Render(int contextHandle);                                                  // paints the 3d scene into the context
+extern void CGE_SaveScreenshotToFile(int contextHandle, const char *szFile);
 extern void CGE_SetLibraryCallbackProc(TCgeLibraryCallback pProc);     // set callback function
-extern void CGE_Update(void);                                                  // let the 3d engine perform the animations, etc
+extern void CGE_Update(int contextHandle);                                                  // let the 3d engine perform the animations, etc
 
-extern void CGE_MouseDown(int x, int y, bool bLeftBtn, int nFingerIdx);    // [0,0] is the bottom-left corner!
-extern void CGE_Motion(int x, int y, int nFingerIdx);
-extern void CGE_MouseUp(int x, int y, bool bLeftBtn, int nFingerIdx);
-extern void CGE_MouseWheel(float zDelta, bool bVertical);
+extern void CGE_MouseDown(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);    // [0,0] is the bottom-left corner!
+extern void CGE_Motion(int contextHandle, int x, int y, int nFingerIdx);
+extern void CGE_MouseUp(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
+extern void CGE_MouseWheel(int contextHandle, float zDelta, bool bVertical);
 
-extern void CGE_KeyDown(int /*ECgeKey*/ eKey);
-extern void CGE_KeyUp(int /*ECgeKey*/ eKey);
+extern void CGE_KeyDown(int contextHandle, int /*ECgeKey*/ eKey);
+extern void CGE_KeyUp(int contextHandle, int /*ECgeKey*/ eKey);
 
-extern void CGE_LoadSceneFromFile(const char *szFile);                     // name od the file has to be utf-8 encoded
-extern void CGE_SaveSceneToFile(const char *szFile, int /*ECgeUrlProcessing*/ eUrlProcessing);
+extern void CGE_LoadSceneFromFile(int contextHandle, const char *szFile);                     // name od the file has to be utf-8 encoded
+extern void CGE_SaveSceneToFile(int contextHandle, const char *szFile, int /*ECgeUrlProcessing*/ eUrlProcessing);
 
-extern int CGE_GetViewpointsCount(void);
-extern void CGE_GetViewpointName(int iViewpointIdx, char *szName, int nBufSize);    // szName is buffer of size nBufSize, and is filled with utf-8 encoded string
-extern void CGE_MoveToViewpoint(int iViewpointIdx, bool bAnimated);
-extern void CGE_AddViewpointFromCurrentView(const char *szName);
+extern int CGE_GetViewpointsCount(int contextHandle);
+extern void CGE_GetViewpointName(int contextHandle, int iViewpointIdx, char *szName, int nBufSize);    // szName is buffer of size nBufSize, and is filled with utf-8 encoded string
+extern void CGE_MoveToViewpoint(int contextHandle, int iViewpointIdx, bool bAnimated);
+extern void CGE_AddViewpointFromCurrentView(int contextHandle, const char *szName);
 
-extern void CGE_GetBoundingBox(float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax);
-extern void CGE_GetViewCoords(float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
+extern void CGE_GetBoundingBox(int contextHandle, float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax);
+extern void CGE_GetViewCoords(int contextHandle, float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
                               float *pfUpX, float *pfUpY, float *pfUpZ, float *pfGravX, float *pfGravY, float *pfGravZ);
-extern void CGE_MoveViewToCoords(float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
+extern void CGE_MoveViewToCoords(int contextHandle, float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
                                  float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, bool bAnimated);
 
-extern void CGE_SetNavigationInputShortcut(int /*ECgeNavigationInput*/ eInput,
+extern void CGE_SetNavigationInputShortcut(int contextHandle, int /*ECgeNavigationInput*/ eInput,
                               int /*ECgeKey*/ eKey1, int /*ECgeKey*/ eKey2 /* = kcge_None */,
                               int /*ECgeMouseButton*/ eMouseButton /* = ecgemouseButtonNone */,
                               int /*ECgeMouseWheelDirection*/ eMouseWheel /* = ecgemouseWheelNone */); // set input controls for camera; parameters correspond to TInputShortcut.Assign
 
-extern int CGE_GetNavigationType(void);
-extern void CGE_SetNavigationType(int /*ECgeNavigationType*/ eNewType);
-extern void CGE_SetTouchInterface(int /*ECgeTouchCtlInterface*/ eMode);
-extern void CGE_SetAutoTouchInterface(bool bAutomaticTouchInterface); // should be called at the start of the program. Touch interface controls will be updated automatically then.
-extern void CGE_SetWalkNavigationMouseDragMode(int /*ECgeMouseDragMode*/ eMode);
+extern int CGE_GetNavigationType(int contextHandle);
+extern void CGE_SetNavigationType(int contextHandle, int /*ECgeNavigationType*/ eNewType);
+extern void CGE_SetTouchInterface(int contextHandle, int /*ECgeTouchCtlInterface*/ eMode);
+extern void CGE_SetAutoTouchInterface(int contextHandle, bool bAutomaticTouchInterface); // should be called at the start of the program. Touch interface controls will be updated automatically then.
+extern void CGE_SetWalkNavigationMouseDragMode(int contextHandle, int /*ECgeMouseDragMode*/ eMode);
 
-extern void CGE_SetVariableInt(int /*ECgeVariable*/ eVar, int nValue);
-extern int CGE_GetVariableInt(int /*ECgeVariable*/ eVar);
+extern void CGE_SetVariableInt(int contextHandle, int /*ECgeVariable*/ eVar, int nValue);
+extern int CGE_GetVariableInt(int contextHandle, int /*ECgeVariable*/ eVar);
 
-extern void CGE_SetNodeFieldValue_SFFloat(const char *szNodeName, const char *szFieldName, float value);
-extern void CGE_SetNodeFieldValue_SFDouble(const char *szNodeName, const char *szFieldName, double value);
-extern void CGE_SetNodeFieldValue_SFInt32(const char *szNodeName, const char *szFieldName, int value);
-extern void CGE_SetNodeFieldValue_SFBool(const char *szNodeName, const char *szFieldName, bool value);
-extern void CGE_SetNodeFieldValue_SFVec2f(const char *szNodeName, const char *szFieldName, float val1, float val2);
-extern void CGE_SetNodeFieldValue_SFVec3f(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3);
-extern void CGE_SetNodeFieldValue_SFVec4f(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4);
-extern void CGE_SetNodeFieldValue_SFVec2d(const char *szNodeName, const char *szFieldName, double val1, double val2);
-extern void CGE_SetNodeFieldValue_SFVec3d(const char *szNodeName, const char *szFieldName, double val1, double val2, double val3);
-extern void CGE_SetNodeFieldValue_SFVec4d(const char *szNodeName, const char *szFieldName, double val1, double val2, double val3, double val4);
-extern void CGE_SetNodeFieldValue_SFRotation(const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation);
-extern void CGE_SetNodeFieldValue_SFString(const char *szNodeName, const char *szFieldName, const char *value);
-extern void CGE_SetNodeFieldValue_MFFloat(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-extern void CGE_SetNodeFieldValue_MFDouble(const char *szNodeName, const char *szFieldName, int iCount, double *values);
-extern void CGE_SetNodeFieldValue_MFInt32(const char *szNodeName, const char *szFieldName, int iCount, int *values);
-extern void CGE_SetNodeFieldValue_MFBool(const char *szNodeName, const char *szFieldName, int iCount, bool *values);
-extern void CGE_SetNodeFieldValue_MFVec2f(const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "2 * iCount" floats in the array "values"
-extern void CGE_SetNodeFieldValue_MFVec3f(const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "3 * iCount" floats in the array "values"
-extern void CGE_SetNodeFieldValue_MFVec4f(const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "4 * iCount" floats in the array "values"
-extern void CGE_SetNodeFieldValue_MFVec2d(const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "2 * iCount" doubles in the array "values"
-extern void CGE_SetNodeFieldValue_MFVec3d(const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "3 * iCount" doubles in the array "values"
-extern void CGE_SetNodeFieldValue_MFVec4d(const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "4 * iCount" doubles in the array "values"
-extern void CGE_SetNodeFieldValue_MFRotation(const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "4 * iCount" floats in the array "values"
-extern void CGE_SetNodeFieldValue_MFString(const char *szNodeName, const char *szFieldName, int iCount, const char **values);  // We expect array of "iCount" char* pointers to null-terminated UTF-8 strings
+extern void CGE_SetNodeFieldValue_SFFloat(int contextHandle, const char *szNodeName, const char *szFieldName, float value);
+extern void CGE_SetNodeFieldValue_SFDouble(int contextHandle, const char *szNodeName, const char *szFieldName, double value);
+extern void CGE_SetNodeFieldValue_SFInt32(int contextHandle, const char *szNodeName, const char *szFieldName, int value);
+extern void CGE_SetNodeFieldValue_SFBool(int contextHandle, const char *szNodeName, const char *szFieldName, bool value);
+extern void CGE_SetNodeFieldValue_SFVec2f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2);
+extern void CGE_SetNodeFieldValue_SFVec3f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3);
+extern void CGE_SetNodeFieldValue_SFVec4f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4);
+extern void CGE_SetNodeFieldValue_SFVec2d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2);
+extern void CGE_SetNodeFieldValue_SFVec3d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3);
+extern void CGE_SetNodeFieldValue_SFVec4d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3, double val4);
+extern void CGE_SetNodeFieldValue_SFRotation(int contextHandle, const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation);
+extern void CGE_SetNodeFieldValue_SFString(int contextHandle, const char *szNodeName, const char *szFieldName, const char *value);
+extern void CGE_SetNodeFieldValue_MFFloat(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+extern void CGE_SetNodeFieldValue_MFDouble(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
+extern void CGE_SetNodeFieldValue_MFInt32(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, int *values);
+extern void CGE_SetNodeFieldValue_MFBool(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, bool *values);
+extern void CGE_SetNodeFieldValue_MFVec2f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "2 * iCount" floats in the array "values"
+extern void CGE_SetNodeFieldValue_MFVec3f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "3 * iCount" floats in the array "values"
+extern void CGE_SetNodeFieldValue_MFVec4f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "4 * iCount" floats in the array "values"
+extern void CGE_SetNodeFieldValue_MFVec2d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "2 * iCount" doubles in the array "values"
+extern void CGE_SetNodeFieldValue_MFVec3d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "3 * iCount" doubles in the array "values"
+extern void CGE_SetNodeFieldValue_MFVec4d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);  // we expect "4 * iCount" doubles in the array "values"
+extern void CGE_SetNodeFieldValue_MFRotation(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);  // we expect "4 * iCount" floats in the array "values"
+extern void CGE_SetNodeFieldValue_MFString(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, const char **values);  // We expect array of "iCount" char* pointers to null-terminated UTF-8 strings
 
-extern void CGE_IncreaseSceneTime(float fTimeS);    // set time in the scene, useful when viewport paused
+extern void CGE_IncreaseSceneTime(int contextHandle, float fTimeS);    // set time in the scene, useful when viewport paused
 
 #ifdef __cplusplus
 }

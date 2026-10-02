@@ -71,8 +71,10 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     SaveSettings();
-    CGE_Finalize();
+    if (m_pGlWidget != nullptr)
+        m_pGlWidget->CloseCGEContext();
     delete ui;
+    CGE_Finalize();
 }
 
 void MainWindow::SetSurfaceFormat(QSurfaceFormat *pFormat)
@@ -113,7 +115,7 @@ void MainWindow::OnFileOpenClick()
 
 void MainWindow::UpdateNavigationButtons()
 {
-    ECgeNavigationType eNav = (ECgeNavigationType)CGE_GetNavigationType();
+    ECgeNavigationType eNav = (ECgeNavigationType)CGE_GetNavigationType(m_pGlWidget->m_iCgeContext);
     ui->actionWalk->setChecked(eNav == ecgenavWalk);
     ui->actionFly->setChecked(eNav == ecgenavFly);
     ui->actionExamine->setChecked(eNav == ecgenavExamine);
@@ -122,33 +124,33 @@ void MainWindow::UpdateNavigationButtons()
 
 void MainWindow::OnWalkClick()
 {
-    CGE_SetNavigationType(ecgenavWalk);
+    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavWalk);
 }
 
 void MainWindow::OnFlyClick()
 {
-    CGE_SetNavigationType(ecgenavFly);
+    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavFly);
 }
 
 void MainWindow::OnExamineClick()
 {
-    CGE_SetNavigationType(ecgenavExamine);
+    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavExamine);
 }
 
 void MainWindow::OnTurntableClick()
 {
-    CGE_SetNavigationType(ecgenavTurntable);
+    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavTurntable);
 }
 
 void MainWindow::UpdateAfterSceneLoaded()
 {
     ui->menuViewpoints->clear();
     // show viewpoints available
-    int nCount = CGE_GetViewpointsCount();
+    int nCount = CGE_GetViewpointsCount(m_pGlWidget->m_iCgeContext);
     for (int i = 0; i < nCount; i++)
     {
         char sName[512];
-        CGE_GetViewpointName(i, sName, 512);
+        CGE_GetViewpointName(m_pGlWidget->m_iCgeContext, i, sName, 512);
         ActionWithTag *pAct = new ActionWithTag(QString::fromUtf8(sName), i, ui->menuViewpoints);
         connect(pAct, SIGNAL(triggered()), this, SLOT(OnMoveToViewpointClick()));
         ui->menuViewpoints->addAction(pAct);
@@ -156,13 +158,13 @@ void MainWindow::UpdateAfterSceneLoaded()
     m_iCurrentViewpoint = 0;
     m_nViewpointCount = nCount;
 
-    ui->actionHead_Bobbing->setChecked(CGE_GetVariableInt(ecgevarWalkHeadBobbing)>0);
-    ui->actionHeadlight->setChecked(CGE_GetVariableInt(ecgevarHeadlight)>0);
-    ui->actionSSAO->setChecked(CGE_GetVariableInt(ecgevarEffectSSAO)>0);
+    ui->actionHead_Bobbing->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing)>0);
+    ui->actionHeadlight->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarHeadlight)>0);
+    ui->actionSSAO->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarEffectSSAO)>0);
 
-    CGE_SetVariableInt(ecgevarPreventInfiniteFallingDown, 1);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarPreventInfiniteFallingDown, 1);
 
-    if (m_aNavKeeper.ApplyState())  // when scene loading was caused by reloading (changing multisampling, etc)
+    if (m_aNavKeeper.ApplyState(m_pGlWidget->m_iCgeContext))  // when scene loading was caused by reloading (changing multisampling, etc)
         UpdateNavigationButtons();
 }
 
@@ -188,7 +190,7 @@ void MainWindow::MoveToViewpoint(int nView)
     if (nView < 0) nView = m_nViewpointCount-1; // for cycling
     if (nView > m_nViewpointCount) nView = 0;
     m_iCurrentViewpoint = nView;
-    CGE_MoveToViewpoint(m_iCurrentViewpoint, true);
+    CGE_MoveToViewpoint(m_pGlWidget->m_iCgeContext, m_iCurrentViewpoint, true);
 }
 
 ActionWithTag::ActionWithTag(QString const& sCaption, int nTag, QObject * parent)
@@ -200,13 +202,13 @@ ActionWithTag::ActionWithTag(QString const& sCaption, int nTag, QObject * parent
 void MainWindow::MenuSoftShadowsClick()
 {
     bool bSwitchOn = ui->actionSSAO->isChecked();
-    CGE_SetVariableInt(ecgevarEffectSSAO, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarEffectSSAO, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::MenuAntiAliasingClick()
 {
     // keep camera position
-    m_aNavKeeper.SaveState();
+    m_aNavKeeper.SaveState(m_pGlWidget->m_iCgeContext);
 
     QString sScene = m_pGlWidget->m_sSceneToOpen;
     takeCentralWidget();
@@ -229,19 +231,19 @@ void MainWindow::MenuAntiAliasingClick()
 void MainWindow::MenuWalkingEffectClick()
 {
     bool bSwitchOn = ui->actionHead_Bobbing->isChecked();
-    CGE_SetVariableInt(ecgevarWalkHeadBobbing, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::MenuMouseLookClick()
 {
-    CGE_SetVariableInt(ecgevarMouseLook, 1);
-    CGE_SetVariableInt(ecgevarCrossHair, 1);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarMouseLook, 1);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarCrossHair, 1);
 }
 
 void MainWindow::on_actionHeadlight_triggered()
 {
     bool bSwitchOn = ui->actionHeadlight->isChecked();
-    CGE_SetVariableInt(ecgevarHeadlight, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarHeadlight, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::AddNewWarning(QString const& sWarning)
@@ -306,7 +308,7 @@ void MainWindow::on_actionSave_Screenshot_triggered()
     QString sFile = QFileDialog::getSaveFileName(this, "Save as image", "CGE-Screenshot.jpg", "JPEG (*.jpg)");
     if (sFile.isEmpty()) return;
 
-    CGE_SaveScreenshotToFile(sFile.toUtf8());  // TODO: this filename string conversion is not perfect: should be in filesystem representation, not utf8
+    CGE_SaveScreenshotToFile(m_pGlWidget->m_iCgeContext, sFile.toUtf8());  // TODO: this filename string conversion is not perfect: should be in filesystem representation, not utf8
 }
 
 NavKeeper::NavKeeper()
@@ -314,19 +316,19 @@ NavKeeper::NavKeeper()
     bToBeApplied = false;
 }
 
-void NavKeeper::SaveState()
+void NavKeeper::SaveState(int iCgeContext)
 {
-    CGE_GetViewCoords(&fPosX, &fPosY, &fPosZ, &fDirX, &fDirY, &fDirZ, &fUpX, &fUpY, &fUpZ, &fGravX, &fGravY, &fGravZ);
-    eNavType = CGE_GetNavigationType();
+    CGE_GetViewCoords(iCgeContext, &fPosX, &fPosY, &fPosZ, &fDirX, &fDirY, &fDirZ, &fUpX, &fUpY, &fUpZ, &fGravX, &fGravY, &fGravZ);
+    eNavType = CGE_GetNavigationType(iCgeContext);
     bToBeApplied = true;
 }
 
-bool NavKeeper::ApplyState()
+bool NavKeeper::ApplyState(int iCgeContext)
 {
     if (!bToBeApplied) return false;
 
-    CGE_MoveViewToCoords(fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ, fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ, false);
-    CGE_SetNavigationType(eNavType);
+    CGE_MoveViewToCoords(iCgeContext, fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ, fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ, false);
+    CGE_SetNavigationType(iCgeContext, eNavType);
 
     bToBeApplied = false;
     return true;

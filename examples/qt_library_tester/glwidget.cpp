@@ -30,6 +30,7 @@ GLWidget::GLWidget(const QSurfaceFormat &format, MainWindow *parent) :
     g_pThis = this;
     m_pMainWnd = parent;
     m_bAfterInit = false;
+    m_iCgeContext = -1;
     m_bLimitFPS = true;
     m_bNeedsDisplay = false;
     m_bPrintContextInfoAtPaint = false;
@@ -42,7 +43,6 @@ GLWidget::GLWidget(const QSurfaceFormat &format, MainWindow *parent) :
 
 GLWidget::~GLWidget()
 {
-    CGE_Close(true);
     g_pThis = NULL;
 }
 
@@ -52,10 +52,19 @@ void GLWidget::OpenScene(QString const &sFilename)
     if (!m_bAfterInit)
         return;
 
-    CGE_LoadSceneFromFile(sFilename.toUtf8());
+    CGE_LoadSceneFromFile(m_iCgeContext, sFilename.toUtf8());
     double dPixRatio = devicePixelRatioF();
-    CGE_Resize(width()*dPixRatio, height()*dPixRatio);
+    CGE_Resize(m_iCgeContext, width()*dPixRatio, height()*dPixRatio);
     m_pMainWnd->UpdateAfterSceneLoaded();
+}
+
+void GLWidget::CloseCGEContext()
+{
+    if (m_iCgeContext != -1)
+    {
+        CGE_Close(m_iCgeContext, true);
+        m_iCgeContext = -1;
+    }
 }
 
 int CDECL GLWidget::OpenGlLibraryCallback(int eCode, int iParam1, int iParam2, const char *szParam)
@@ -110,8 +119,8 @@ void GLWidget::initializeGL()
     // Get config dir, see https://stackoverflow.com/questions/4369661/qt-how-to-save-a-configuration-file-on-multiple-platforms
     QString configDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     CGE_Initialize(configDir.toUtf8());
-    CGE_Open(ecgeofLog, width()*dPixRatio, height()*dPixRatio, logicalDpiY());
-    CGE_SetAutoTouchInterface(false);
+    m_iCgeContext = CGE_Open(ecgeofLog, width()*dPixRatio, height()*dPixRatio, logicalDpiY());
+    CGE_SetAutoTouchInterface(m_iCgeContext, false);
     CGE_SetLibraryCallbackProc(OpenGlLibraryCallback);
     m_bAfterInit = true;
     if (!m_sSceneToOpen.isEmpty())
@@ -136,7 +145,7 @@ void GLWidget::OnUpdateTimer()
 
     makeCurrent();  // be sure we have the right context set
 
-    CGE_Update();
+    CGE_Update(m_iCgeContext);
 
     doneCurrent();
 
@@ -157,7 +166,7 @@ void GLWidget::paintGL()
         m_bPrintContextInfoAtPaint = false;
     }
 
-    CGE_Render();
+    CGE_Render(m_iCgeContext);
 }
 
 void GLWidget::resizeGL(int width, int height)
@@ -165,7 +174,7 @@ void GLWidget::resizeGL(int width, int height)
     if (m_bAfterInit && width > 0 && height > 0)
     {
         double dPixRatio = devicePixelRatioF();
-        CGE_Resize(width * dPixRatio, height * dPixRatio);
+        CGE_Resize(m_iCgeContext, width * dPixRatio, height * dPixRatio);
     }
 }
 
@@ -188,7 +197,7 @@ void GLWidget::mousePressEvent(QMouseEvent *event)
     if (!m_bAfterInit) return;
 
     QPoint pt(PointFromMousePoint(event->pos()));
-    CGE_MouseDown(pt.x(), pt.y(), event->button()==Qt::LeftButton, 0);
+    CGE_MouseDown(m_iCgeContext, pt.x(), pt.y(), event->button()==Qt::LeftButton, 0);
 }
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
@@ -196,7 +205,7 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
     if (!m_bAfterInit) return;
 
     QPoint pt(PointFromMousePoint(event->pos()));
-    CGE_Motion(pt.x(), pt.y(), 0);
+    CGE_Motion(m_iCgeContext, pt.x(), pt.y(), 0);
 }
 
 void GLWidget::mouseReleaseEvent(QMouseEvent *event)
@@ -204,16 +213,16 @@ void GLWidget::mouseReleaseEvent(QMouseEvent *event)
     if (!m_bAfterInit) return;
 
     QPoint pt(PointFromMousePoint(event->pos()));
-    CGE_MouseUp(pt.x(), pt.y(), event->button()==Qt::LeftButton, 0);
+    CGE_MouseUp(m_iCgeContext, pt.x(), pt.y(), event->button()==Qt::LeftButton, 0);
 }
 
 #ifndef QT_NO_WHEELEVENT
 void GLWidget::wheelEvent(QWheelEvent *event)
 {
     if (event->angleDelta().y() != 0)
-        CGE_MouseWheel(event->angleDelta().y(), true);
+        CGE_MouseWheel(m_iCgeContext, event->angleDelta().y(), true);
     else
-        CGE_MouseWheel(event->angleDelta().x(), false);
+        CGE_MouseWheel(m_iCgeContext, event->angleDelta().x(), false);
 
     if (m_bNeedsDisplay)
     {
@@ -225,20 +234,20 @@ void GLWidget::wheelEvent(QWheelEvent *event)
 
 void GLWidget::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape && CGE_GetVariableInt(ecgevarMouseLook)==1)
+    if (event->key() == Qt::Key_Escape && CGE_GetVariableInt(m_iCgeContext, ecgevarMouseLook)==1)
     {
-        CGE_SetVariableInt(ecgevarMouseLook, 0);
-        CGE_SetVariableInt(ecgevarCrossHair, 0);
+        CGE_SetVariableInt(m_iCgeContext, ecgevarMouseLook, 0);
+        CGE_SetVariableInt(m_iCgeContext, ecgevarCrossHair, 0);
         event->accept();
         return;
     }
 
-    CGE_KeyDown(QKeyToCgeKey(event->key()));
+    CGE_KeyDown(m_iCgeContext, QKeyToCgeKey(event->key()));
 }
 
 void GLWidget::keyReleaseEvent(QKeyEvent *event)
 {
-    CGE_KeyUp(QKeyToCgeKey(event->key()));
+    CGE_KeyUp(m_iCgeContext, QKeyToCgeKey(event->key()));
 }
 
 int GLWidget::QKeyToCgeKey(int qKey)

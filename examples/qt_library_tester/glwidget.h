@@ -32,9 +32,11 @@ public:
     explicit GLWidget(const QSurfaceFormat &format, MainWindow *parent = 0);
     ~GLWidget();
 
+    int m_iCgeContext;
     QString m_sSceneToOpen;
     bool m_bLimitFPS;
     void OpenScene(QString const &sFilename);
+    void CloseCGEContext();
 
     // helpers
 public:

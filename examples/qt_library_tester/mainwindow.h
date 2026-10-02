@@ -20,8 +20,8 @@ private:
 
 public:
     NavKeeper();
-    void SaveState();
-    bool ApplyState();
+    void SaveState(int iCgeContext);
+    bool ApplyState(int iCgeContext);
 };
 
 class MainWindow : public QMainWindow

@@ -46,74 +46,74 @@
 //-----------------------------------------------------------------------------
 typedef void (CDECL *PFNRD_CGE_Initialize)(const char *applicationConfigDirectory);
 typedef void (CDECL *PFNRD_CGE_Finalize)();
-typedef void (CDECL *PFNRD_CGE_Open)(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi);
-typedef void (CDECL *PFNRD_CGE_Close)(bool quitWhenLastWindowClosed);
+typedef int (CDECL *PFNRD_CGE_Open)(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi);
+typedef void (CDECL *PFNRD_CGE_Close)(int contextHandle, bool quitWhenLastWindowClosed);
 typedef void (CDECL *PFNRD_CGE_GetOpenGLInformation)(char *szBuffer, int nBufSize);
 typedef void (CDECL *PFNRD_CGE_GetCastleEngineVersion)(char *szBuffer, int nBufSize);
 
-typedef void (CDECL *PFNRD_CGE_Resize)(unsigned uiViewWidth, unsigned uiViewHeight);
-typedef void (CDECL *PFNRD_CGE_Render)();
-typedef void (CDECL *PFNRD_CGE_SaveScreenshotToFile)(const char *szFile);
+typedef void (CDECL *PFNRD_CGE_Resize)(int contextHandle, unsigned uiViewWidth, unsigned uiViewHeight);
+typedef void (CDECL *PFNRD_CGE_Render)(int contextHandle);
+typedef void (CDECL *PFNRD_CGE_SaveScreenshotToFile)(int contextHandle, const char *szFile);
 typedef void (CDECL *PFNRD_CGE_SetLibraryCallbackProc)(TCgeLibraryCallback pProc);
-typedef void (CDECL *PFNRD_CGE_Update)();
+typedef void (CDECL *PFNRD_CGE_Update)(int contextHandle);
 
-typedef void (CDECL *PFNRD_CGE_MouseDown)(int x, int y, bool bLeftBtn, int nFingerIdx);
-typedef void (CDECL *PFNRD_CGE_Motion)(int x, int y, int nFingerIdx);
-typedef void (CDECL *PFNRD_CGE_MouseUp)(int x, int y, bool bLeftBtn, int nFingerIdx);
-typedef void (CDECL *PFNRD_CGE_MouseWheel)(float zDelta, bool bVertical);
+typedef void (CDECL *PFNRD_CGE_MouseDown)(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
+typedef void (CDECL *PFNRD_CGE_Motion)(int contextHandle, int x, int y, int nFingerIdx);
+typedef void (CDECL *PFNRD_CGE_MouseUp)(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
+typedef void (CDECL *PFNRD_CGE_MouseWheel)(int contextHandle, float zDelta, bool bVertical);
 
-typedef void (CDECL *PFNRD_CGE_KeyDown)(int eKey);
-typedef void (CDECL *PFNRD_CGE_KeyUp)(int eKey);
+typedef void (CDECL *PFNRD_CGE_KeyDown)(int contextHandle, int eKey);
+typedef void (CDECL *PFNRD_CGE_KeyUp)(int contextHandle, int eKey);
 
-typedef void (CDECL *PFNRD_CGE_LoadSceneFromFile)(const char *szFile);
-typedef void (CDECL *PFNRD_CGE_SaveSceneToFile)(const char *szFile, int eUrlProcessing);
+typedef void (CDECL *PFNRD_CGE_LoadSceneFromFile)(int contextHandle, const char *szFile);
+typedef void (CDECL *PFNRD_CGE_SaveSceneToFile)(int contextHandle, const char *szFile, int eUrlProcessing);
 
-typedef int (CDECL *PFNRD_CGE_GetViewpointsCount)();
-typedef void (CDECL *PFNRD_CGE_GetViewpointName)(int iViewpointIdx, char *szName, int nBufSize);
-typedef void (CDECL *PFNRD_CGE_MoveToViewpoint)(int iViewpointIdx, bool bAnimated);
-typedef void (CDECL *PFNRD_CGE_AddViewpointFromCurrentView)(const char *szName);
-typedef void (CDECL *PFNRD_CGE_GetBoundingBox)(float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax);
-typedef void (CDECL *PFNRD_CGE_GetViewCoords)(float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
+typedef int (CDECL *PFNRD_CGE_GetViewpointsCount)(int contextHandle);
+typedef void (CDECL *PFNRD_CGE_GetViewpointName)(int contextHandle, int iViewpointIdx, char *szName, int nBufSize);
+typedef void (CDECL *PFNRD_CGE_MoveToViewpoint)(int contextHandle, int iViewpointIdx, bool bAnimated);
+typedef void (CDECL *PFNRD_CGE_AddViewpointFromCurrentView)(int contextHandle, const char *szName);
+typedef void (CDECL *PFNRD_CGE_GetBoundingBox)(int contextHandle, float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax);
+typedef void (CDECL *PFNRD_CGE_GetViewCoords)(int contextHandle, float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
                                                 float *pfUpX, float *pfUpY, float *pfUpZ, float *pfGravX, float *pfGravY, float *pfGravZ);
-typedef void (CDECL *PFNRD_CGE_MoveViewToCoords)(float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
+typedef void (CDECL *PFNRD_CGE_MoveViewToCoords)(int contextHandle, float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
                                                    float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, bool bAnimated);
 
-typedef void (CDECL *PFNRD_CGE_SetNavigationInputShortcut)(int eInput, int eKey1, int eKey2, int eMouseButton, int eMouseWheel);
+typedef void (CDECL *PFNRD_CGE_SetNavigationInputShortcut)(int contextHandle, int eInput, int eKey1, int eKey2, int eMouseButton, int eMouseWheel);
 
-typedef int (CDECL *PFNRD_CGE_GetNavigationType)();
-typedef void (CDECL *PFNRD_CGE_SetNavigationType)(int eNewType);
-typedef void (CDECL *PFNRD_CGE_SetTouchInterface)(int eMode);
-typedef void (CDECL *PFNRD_CGE_SetAutoTouchInterface)(bool bAutomaticTouchInterface);
-typedef void (CDECL *PFNRD_CGE_SetWalkNavigationMouseDragMode)(int eMode);
+typedef int (CDECL *PFNRD_CGE_GetNavigationType)(int contextHandle);
+typedef void (CDECL *PFNRD_CGE_SetNavigationType)(int contextHandle, int eNewType);
+typedef void (CDECL *PFNRD_CGE_SetTouchInterface)(int contextHandle, int eMode);
+typedef void (CDECL *PFNRD_CGE_SetAutoTouchInterface)(int contextHandle, bool bAutomaticTouchInterface);
+typedef void (CDECL *PFNRD_CGE_SetWalkNavigationMouseDragMode)(int contextHandle, int eMode);
 
-typedef void (CDECL *PFNRD_CGE_SetVariableInt)(int eVar, int nValue);
-typedef int (CDECL *PFNRD_CGE_GetVariableInt)(int eVar);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFFloat)(const char *szNodeName, const char *szFieldName, float value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFDouble)(const char *szNodeName, const char *szFieldName, double value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFInt32)(const char *szNodeName, const char *szFieldName, int value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFBool)(const char *szNodeName, const char *szFieldName, bool value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec2f)(const char *szNodeName, const char *szFieldName, float val1, float val2);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec3f)(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec4f)(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec2d)(const char *szNodeName, const char *szFieldName, double val1, double val2);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec3d)(const char *szNodeName, const char *szFieldName, double val1, double val2, double val3);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec4d)(const char *szNodeName, const char *szFieldName, double val1, double val2, double val3, double val4);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFRotation)(const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFString)(const char *szNodeName, const char *szFieldName, const char *value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFFloat)(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFDouble)(const char *szNodeName, const char *szFieldName, int iCount, double *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFInt32)(const char *szNodeName, const char *szFieldName, int iCount, int *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFBool)(const char *szNodeName, const char *szFieldName, int iCount, bool *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec2f)(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec3f)(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec4f)(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec2d)(const char *szNodeName, const char *szFieldName, int iCount, double *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec3d)(const char *szNodeName, const char *szFieldName, int iCount, double *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec4d)(const char *szNodeName, const char *szFieldName, int iCount, double *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFRotation)(const char *szNodeName, const char *szFieldName, int iCount, float *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFString)(const char *szNodeName, const char *szFieldName, int iCount, const char **values);
+typedef void (CDECL *PFNRD_CGE_SetVariableInt)(int contextHandle, int eVar, int nValue);
+typedef int (CDECL *PFNRD_CGE_GetVariableInt)(int contextHandle, int eVar);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFFloat)(int contextHandle, const char *szNodeName, const char *szFieldName, float value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFDouble)(int contextHandle, const char *szNodeName, const char *szFieldName, double value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFInt32)(int contextHandle, const char *szNodeName, const char *szFieldName, int value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, bool value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec2f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec3f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec4f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec2d)(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec3d)(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec4d)(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3, double val4);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFRotation)(int contextHandle, const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFString)(int contextHandle, const char *szNodeName, const char *szFieldName, const char *value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFFloat)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFDouble)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFInt32)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, int *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, bool *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec2f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec3f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec4f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec2d)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec3d)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec4d)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFRotation)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFString)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, const char **values);
 
-typedef void (CDECL *PFNRD_CGE_IncreaseSceneTime)(float fTimeS);
+typedef void (CDECL *PFNRD_CGE_IncreaseSceneTime)(int contextHandle, float fTimeS);
 
 PFNRD_CGE_Initialize pfrd_CGE_Initialize = NULL;
 PFNRD_CGE_Finalize pfrd_CGE_Finalize = NULL;
@@ -209,7 +209,7 @@ void CGE_LoadLibrary()
 #else
     HMODULE hCgeDll = LoadLibrary("castleengine.dll");
     if (hCgeDll==NULL)
-		return;
+        return;
 #endif
 
     pfrd_CGE_Initialize = (PFNRD_CGE_Initialize)cge_GetProc(hCgeDll, "CGE_Initialize");
@@ -276,420 +276,422 @@ void CGE_LoadLibrary()
 //-----------------------------------------------------------------------------
 void CGE_Initialize(const char *applicationConfigDirectory)
 {
-	if (pfrd_CGE_Initialize!=NULL)
-		(*pfrd_CGE_Initialize)(applicationConfigDirectory);
+    if (pfrd_CGE_Initialize!=NULL)
+        (*pfrd_CGE_Initialize)(applicationConfigDirectory);
 }
 
 //-----------------------------------------------------------------------------
 void CGE_Finalize()
 {
-	if (pfrd_CGE_Finalize!=NULL)
-		(*pfrd_CGE_Finalize)();
+    if (pfrd_CGE_Finalize!=NULL)
+        (*pfrd_CGE_Finalize)();
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Open(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi)
+int CGE_Open(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi)
 {
-	if (pfrd_CGE_Open!=NULL)
-		(*pfrd_CGE_Open)(uiFlags, initialWidth, initialHeight, uiDpi);
+    if (pfrd_CGE_Open!=NULL)
+        return (*pfrd_CGE_Open)(uiFlags, initialWidth, initialHeight, uiDpi);
+    else
+        return -1;
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Close(bool quitWhenLastWindowClosed)
+void CGE_Close(int contextHandle, bool quitWhenLastWindowClosed)
 {
-	if (pfrd_CGE_Close!=NULL)
-        (*pfrd_CGE_Close)(quitWhenLastWindowClosed);
+    if (pfrd_CGE_Close!=NULL)
+    (*pfrd_CGE_Close)(contextHandle, quitWhenLastWindowClosed);
 }
 
 //-----------------------------------------------------------------------------
 void CGE_GetOpenGLInformation(char *szBuffer, int nBufSize)
 {
-	if (pfrd_CGE_GetOpenGLInformation!=NULL)
+    if (pfrd_CGE_GetOpenGLInformation!=NULL)
         (*pfrd_CGE_GetOpenGLInformation)(szBuffer, nBufSize);
 }
 
 //-----------------------------------------------------------------------------
 void CGE_GetCastleEngineVersion(char *szBuffer, int nBufSize)
 {
-	if (pfrd_CGE_GetCastleEngineVersion!=NULL)
+    if (pfrd_CGE_GetCastleEngineVersion!=NULL)
         (*pfrd_CGE_GetCastleEngineVersion)(szBuffer, nBufSize);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Resize(unsigned uiViewWidth, unsigned uiViewHeight)
+void CGE_Resize(int contextHandle, unsigned uiViewWidth, unsigned uiViewHeight)
 {
-	if (pfrd_CGE_Resize!=NULL)
-		(*pfrd_CGE_Resize)(uiViewWidth, uiViewHeight);
+    if (pfrd_CGE_Resize!=NULL)
+        (*pfrd_CGE_Resize)(contextHandle, uiViewWidth, uiViewHeight);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Render()
+void CGE_Render(int contextHandle)
 {
-	if (pfrd_CGE_Render!=NULL)
-		(*pfrd_CGE_Render)();
+    if (pfrd_CGE_Render!=NULL)
+        (*pfrd_CGE_Render)(contextHandle);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SaveScreenshotToFile(const char *szFile)
+void CGE_SaveScreenshotToFile(int contextHandle, const char *szFile)
 {
-	if (pfrd_CGE_SaveScreenshotToFile!=NULL)
-		(*pfrd_CGE_SaveScreenshotToFile)(szFile);
+    if (pfrd_CGE_SaveScreenshotToFile!=NULL)
+        (*pfrd_CGE_SaveScreenshotToFile)(contextHandle, szFile);
 }
 
 //-----------------------------------------------------------------------------
 void CGE_SetLibraryCallbackProc(TCgeLibraryCallback pProc)
 {
-	if (pfrd_CGE_SetLibraryCallbackProc!=NULL)
-		(*pfrd_CGE_SetLibraryCallbackProc)(pProc);
+    if (pfrd_CGE_SetLibraryCallbackProc!=NULL)
+        (*pfrd_CGE_SetLibraryCallbackProc)(pProc);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Update()
+void CGE_Update(int contextHandle)
 {
-	if (pfrd_CGE_Update!=NULL)
-		(*pfrd_CGE_Update)();
+    if (pfrd_CGE_Update!=NULL)
+        (*pfrd_CGE_Update)(contextHandle);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseDown(int x, int y, bool bLeftBtn, int nFingerIdx)
+void CGE_MouseDown(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx)
 {
-	if (pfrd_CGE_MouseDown!=NULL)
-		(*pfrd_CGE_MouseDown)(x, y, bLeftBtn, nFingerIdx);
+    if (pfrd_CGE_MouseDown!=NULL)
+        (*pfrd_CGE_MouseDown)(contextHandle, x, y, bLeftBtn, nFingerIdx);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Motion(int x, int y, int nFingerIdx)
+void CGE_Motion(int contextHandle, int x, int y, int nFingerIdx)
 {
-	if (pfrd_CGE_Motion!=NULL)
-		(*pfrd_CGE_Motion)(x, y, nFingerIdx);
+    if (pfrd_CGE_Motion!=NULL)
+        (*pfrd_CGE_Motion)(contextHandle, x, y, nFingerIdx);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseUp(int x, int y, bool bLeftBtn, int nFingerIdx)
+void CGE_MouseUp(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx)
 {
-	if (pfrd_CGE_MouseUp!=NULL)
-		(*pfrd_CGE_MouseUp)(x, y, bLeftBtn, nFingerIdx);
+    if (pfrd_CGE_MouseUp!=NULL)
+        (*pfrd_CGE_MouseUp)(contextHandle, x, y, bLeftBtn, nFingerIdx);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseWheel(float zDelta, bool bVertical)
+void CGE_MouseWheel(int contextHandle, float zDelta, bool bVertical)
 {
-	if (pfrd_CGE_MouseWheel!=NULL)
-		(*pfrd_CGE_MouseWheel)(zDelta, bVertical);
+    if (pfrd_CGE_MouseWheel!=NULL)
+        (*pfrd_CGE_MouseWheel)(contextHandle, zDelta, bVertical);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_KeyDown(int /*ECgeKey*/ eKey)
+void CGE_KeyDown(int contextHandle, int /*ECgeKey*/ eKey)
 {
     if (pfrd_CGE_KeyDown!=NULL)
-        (*pfrd_CGE_KeyDown)(eKey);
+    (*pfrd_CGE_KeyDown)(contextHandle, eKey);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_KeyUp(int /*ECgeKey*/ eKey)
+void CGE_KeyUp(int contextHandle, int /*ECgeKey*/ eKey)
 {
     if (pfrd_CGE_KeyUp!=NULL)
-        (*pfrd_CGE_KeyUp)(eKey);
+    (*pfrd_CGE_KeyUp)(contextHandle, eKey);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_LoadSceneFromFile(const char *szFile)
+void CGE_LoadSceneFromFile(int contextHandle, const char *szFile)
 {
-	if (pfrd_CGE_LoadSceneFromFile!=NULL)
-		(*pfrd_CGE_LoadSceneFromFile)(szFile);
+    if (pfrd_CGE_LoadSceneFromFile!=NULL)
+        (*pfrd_CGE_LoadSceneFromFile)(contextHandle, szFile);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SaveSceneToFile(const char *szFile, int /*ECgeUrlProcessing*/ eUrlProcessing)
+void CGE_SaveSceneToFile(int contextHandle, const char *szFile, int /*ECgeUrlProcessing*/ eUrlProcessing)
 {
-	if (pfrd_CGE_SaveSceneToFile!=NULL)
-		(*pfrd_CGE_SaveSceneToFile)(szFile, eUrlProcessing);
+    if (pfrd_CGE_SaveSceneToFile!=NULL)
+        (*pfrd_CGE_SaveSceneToFile)(contextHandle, szFile, eUrlProcessing);
 }
 
 //-----------------------------------------------------------------------------
-int CGE_GetViewpointsCount()
+int CGE_GetViewpointsCount(int contextHandle)
 {
-	if (pfrd_CGE_GetViewpointsCount!=NULL)
-		return (*pfrd_CGE_GetViewpointsCount)();
+    if (pfrd_CGE_GetViewpointsCount!=NULL)
+        return (*pfrd_CGE_GetViewpointsCount)(contextHandle);
     else
         return 0;
 }
 
 //-----------------------------------------------------------------------------
-void CGE_GetViewpointName(int iViewpointIdx, char *szName, int nBufSize)
+void CGE_GetViewpointName(int contextHandle, int iViewpointIdx, char *szName, int nBufSize)
 {
-	if (pfrd_CGE_GetViewpointName!=NULL)
-		(*pfrd_CGE_GetViewpointName)(iViewpointIdx, szName, nBufSize);
+    if (pfrd_CGE_GetViewpointName!=NULL)
+        (*pfrd_CGE_GetViewpointName)(contextHandle, iViewpointIdx, szName, nBufSize);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MoveToViewpoint(int iViewpointIdx, bool bAnimated)
+void CGE_MoveToViewpoint(int contextHandle, int iViewpointIdx, bool bAnimated)
 {
-	if (pfrd_CGE_MoveToViewpoint!=NULL)
-		(*pfrd_CGE_MoveToViewpoint)(iViewpointIdx, bAnimated);
+    if (pfrd_CGE_MoveToViewpoint!=NULL)
+        (*pfrd_CGE_MoveToViewpoint)(contextHandle, iViewpointIdx, bAnimated);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_AddViewpointFromCurrentView(const char *szName)
+void CGE_AddViewpointFromCurrentView(int contextHandle, const char *szName)
 {
-	if (pfrd_CGE_AddViewpointFromCurrentView!=NULL)
-		(*pfrd_CGE_AddViewpointFromCurrentView)(szName);
+    if (pfrd_CGE_AddViewpointFromCurrentView!=NULL)
+        (*pfrd_CGE_AddViewpointFromCurrentView)(contextHandle, szName);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_GetBoundingBox(float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax)
+void CGE_GetBoundingBox(int contextHandle, float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax)
 {
-	if (pfrd_CGE_GetBoundingBox!=NULL)
-		(*pfrd_CGE_GetBoundingBox)(pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax);
+    if (pfrd_CGE_GetBoundingBox!=NULL)
+        (*pfrd_CGE_GetBoundingBox)(contextHandle, pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_GetViewCoords(float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
+void CGE_GetViewCoords(int contextHandle, float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
                        float *pfUpX, float *pfUpY, float *pfUpZ, float *pfGravX, float *pfGravY, float *pfGravZ)
 {
-	if (pfrd_CGE_GetViewCoords!=NULL)
-		(*pfrd_CGE_GetViewCoords)(pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ, pfUpX, pfUpY, pfUpZ, pfGravX, pfGravY, pfGravZ);
+    if (pfrd_CGE_GetViewCoords!=NULL)
+        (*pfrd_CGE_GetViewCoords)(contextHandle, pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ, pfUpX, pfUpY, pfUpZ, pfGravX, pfGravY, pfGravZ);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MoveViewToCoords(float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
+void CGE_MoveViewToCoords(int contextHandle, float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
                           float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, bool bAnimated)
 {
-	if (pfrd_CGE_MoveViewToCoords!=NULL)
-		(*pfrd_CGE_MoveViewToCoords)(fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ, fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ, bAnimated);
+    if (pfrd_CGE_MoveViewToCoords!=NULL)
+        (*pfrd_CGE_MoveViewToCoords)(contextHandle, fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ, fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ, bAnimated);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNavigationInputShortcut(int eInput, int eKey1, int eKey2, int eMouseButton, int eMouseWheel)
+void CGE_SetNavigationInputShortcut(int contextHandle, int eInput, int eKey1, int eKey2, int eMouseButton, int eMouseWheel)
 {
-	if (pfrd_CGE_SetNavigationInputShortcut!=NULL)
-		(*pfrd_CGE_SetNavigationInputShortcut)(eInput, eKey1, eKey2, eMouseButton, eMouseWheel);
+    if (pfrd_CGE_SetNavigationInputShortcut!=NULL)
+        (*pfrd_CGE_SetNavigationInputShortcut)(contextHandle, eInput, eKey1, eKey2, eMouseButton, eMouseWheel);
 }
 
 //-----------------------------------------------------------------------------
-int CGE_GetNavigationType()
+int CGE_GetNavigationType(int contextHandle)
 {
     if (pfrd_CGE_GetNavigationType!=NULL)
-            return (*pfrd_CGE_GetNavigationType)();
+        return (*pfrd_CGE_GetNavigationType)(contextHandle);
     else
         return 0;
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNavigationType(int /*ECgeNavigationType*/ eNewType)
+void CGE_SetNavigationType(int contextHandle, int /*ECgeNavigationType*/ eNewType)
 {
     if (pfrd_CGE_SetNavigationType!=NULL)
-        (*pfrd_CGE_SetNavigationType)(eNewType);
+        (*pfrd_CGE_SetNavigationType)(contextHandle, eNewType);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetTouchInterface(int /*ECgeTouchCtlInterface*/ eMode)
+void CGE_SetTouchInterface(int contextHandle, int /*ECgeTouchCtlInterface*/ eMode)
 {
     if (pfrd_CGE_SetTouchInterface!=NULL)
-        (*pfrd_CGE_SetTouchInterface)(eMode);
+        (*pfrd_CGE_SetTouchInterface)(contextHandle, eMode);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetAutoTouchInterface(bool bAutomaticTouchInterface)
+void CGE_SetAutoTouchInterface(int contextHandle, bool bAutomaticTouchInterface)
 {
     if (pfrd_CGE_SetAutoTouchInterface!=NULL)
-        (*pfrd_CGE_SetAutoTouchInterface)(bAutomaticTouchInterface);
+        (*pfrd_CGE_SetAutoTouchInterface)(contextHandle, bAutomaticTouchInterface);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetWalkNavigationMouseDragMode(int /*ECgeMouseDragMode*/ eMode)
+void CGE_SetWalkNavigationMouseDragMode(int contextHandle, int /*ECgeMouseDragMode*/ eMode)
 {
     if (pfrd_CGE_SetWalkNavigationMouseDragMode!=NULL)
-        (*pfrd_CGE_SetWalkNavigationMouseDragMode)(eMode);
+        (*pfrd_CGE_SetWalkNavigationMouseDragMode)(contextHandle, eMode);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetVariableInt(int /*ECgeVariable*/ eVar, int nValue)
+void CGE_SetVariableInt(int contextHandle, int /*ECgeVariable*/ eVar, int nValue)
 {
     if (pfrd_CGE_SetVariableInt!=NULL)
-        (*pfrd_CGE_SetVariableInt)(eVar, nValue);
+    (*pfrd_CGE_SetVariableInt)(contextHandle, eVar, nValue);
 }
 
 //-----------------------------------------------------------------------------
-int CGE_GetVariableInt(int /*ECgeVariable*/ eVar)
+int CGE_GetVariableInt(int contextHandle, int /*ECgeVariable*/ eVar)
 {
     if (pfrd_CGE_GetVariableInt!=NULL)
-        return (*pfrd_CGE_GetVariableInt)(eVar);
+    return (*pfrd_CGE_GetVariableInt)(contextHandle, eVar);
     else
         return -1;
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFFloat(const char *szNodeName, const char *szFieldName, float value)
+void CGE_SetNodeFieldValue_SFFloat(int contextHandle, const char *szNodeName, const char *szFieldName, float value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFFloat!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFFloat)(szNodeName, szFieldName, value);
+    (*pfrd_CGE_SetNodeFieldValue_SFFloat)(contextHandle, szNodeName, szFieldName, value);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFDouble(const char *szNodeName, const char *szFieldName, double value)
+void CGE_SetNodeFieldValue_SFDouble(int contextHandle, const char *szNodeName, const char *szFieldName, double value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFDouble!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFDouble)(szNodeName, szFieldName, value);
+        (*pfrd_CGE_SetNodeFieldValue_SFDouble)(contextHandle, szNodeName, szFieldName, value);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFInt32(const char *szNodeName, const char *szFieldName, int value)
+void CGE_SetNodeFieldValue_SFInt32(int contextHandle, const char *szNodeName, const char *szFieldName, int value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFInt32!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFInt32)(szNodeName, szFieldName, value);
+        (*pfrd_CGE_SetNodeFieldValue_SFInt32)(contextHandle, szNodeName, szFieldName, value);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFBool(const char *szNodeName, const char *szFieldName, bool value)
+void CGE_SetNodeFieldValue_SFBool(int contextHandle, const char *szNodeName, const char *szFieldName, bool value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFBool!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFBool)(szNodeName, szFieldName, value);
+        (*pfrd_CGE_SetNodeFieldValue_SFBool)(contextHandle, szNodeName, szFieldName, value);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec2f(const char *szNodeName, const char *szFieldName, float val1, float val2)
+void CGE_SetNodeFieldValue_SFVec2f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec2f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec2f)(szNodeName, szFieldName, val1, val2);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec2f)(contextHandle, szNodeName, szFieldName, val1, val2);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec3f(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3)
+void CGE_SetNodeFieldValue_SFVec3f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec3f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec3f)(szNodeName, szFieldName, val1, val2, val3);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec3f)(contextHandle, szNodeName, szFieldName, val1, val2, val3);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec4f(const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4)
+void CGE_SetNodeFieldValue_SFVec4f(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec4f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec4f)(szNodeName, szFieldName, val1, val2, val3, val4);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec4f)(contextHandle, szNodeName, szFieldName, val1, val2, val3, val4);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec2d(const char *szNodeName, const char *szFieldName, double val1, float val2)
+void CGE_SetNodeFieldValue_SFVec2d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec2d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec2d)(szNodeName, szFieldName, val1, val2);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec2d)(contextHandle, szNodeName, szFieldName, val1, val2);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec3d(const char *szNodeName, const char *szFieldName, double val1, float val2, float val3)
+void CGE_SetNodeFieldValue_SFVec3d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec3d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec3d)(szNodeName, szFieldName, val1, val2, val3);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec3d)(contextHandle, szNodeName, szFieldName, val1, val2, val3);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFVec4d(const char *szNodeName, const char *szFieldName, double val1, float val2, float val3, float val4)
+void CGE_SetNodeFieldValue_SFVec4d(int contextHandle, const char *szNodeName, const char *szFieldName, double val1, double val2, double val3, double val4)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFVec4d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFVec4d)(szNodeName, szFieldName, val1, val2, val3, val4);
+        (*pfrd_CGE_SetNodeFieldValue_SFVec4d)(contextHandle, szNodeName, szFieldName, val1, val2, val3, val4);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFRotation(const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation)
+void CGE_SetNodeFieldValue_SFRotation(int contextHandle, const char *szNodeName, const char *szFieldName, float axisX, float axisY, float axisZ, float rotation)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFRotation!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFRotation)(szNodeName, szFieldName, axisX, axisY, axisZ, rotation);
+        (*pfrd_CGE_SetNodeFieldValue_SFRotation)(contextHandle, szNodeName, szFieldName, axisX, axisY, axisZ, rotation);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFString(const char *szNodeName, const char *szFieldName, const char *value)
+void CGE_SetNodeFieldValue_SFString(int contextHandle, const char *szNodeName, const char *szFieldName, const char *value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFString!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_SFString)(szNodeName, szFieldName, value);
+        (*pfrd_CGE_SetNodeFieldValue_SFString)(contextHandle, szNodeName, szFieldName, value);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFFloat(const char *szNodeName, const char *szFieldName, int iCount, float *values)
+void CGE_SetNodeFieldValue_MFFloat(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFFloat!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFFloat)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFFloat)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFDouble(const char *szNodeName, const char *szFieldName, int iCount, double *values)
+void CGE_SetNodeFieldValue_MFDouble(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFDouble!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFDouble)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFDouble)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFInt32(const char *szNodeName, const char *szFieldName, int iCount, int *values)
+void CGE_SetNodeFieldValue_MFInt32(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, int *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFInt32!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFInt32)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFInt32)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFBool(const char *szNodeName, const char *szFieldName, int iCount, bool *values)
+void CGE_SetNodeFieldValue_MFBool(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, bool *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFBool!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFBool)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFBool)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec2f(const char *szNodeName, const char *szFieldName, int iCount, float *values)
+void CGE_SetNodeFieldValue_MFVec2f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec2f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec2f)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFVec2f)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec3f(const char *szNodeName, const char *szFieldName, int iCount, float *values)
+void CGE_SetNodeFieldValue_MFVec3f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec3f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec3f)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFVec3f)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec4f(const char *szNodeName, const char *szFieldName, int iCount, float *values)
+void CGE_SetNodeFieldValue_MFVec4f(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec4f!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec4f)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFVec4f)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec2d(const char *szNodeName, const char *szFieldName, int iCount, double *values)
+void CGE_SetNodeFieldValue_MFVec2d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec2d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec2d)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFVec2d)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec3d(const char *szNodeName, const char *szFieldName, int iCount, double *values)
+void CGE_SetNodeFieldValue_MFVec3d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec3d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec3d)(szNodeName, szFieldName, iCount, values);
+    (*pfrd_CGE_SetNodeFieldValue_MFVec3d)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFVec4d(const char *szNodeName, const char *szFieldName, int iCount, double *values)
+void CGE_SetNodeFieldValue_MFVec4d(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFVec4d!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFVec4d)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFVec4d)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFRotation(const char *szNodeName, const char *szFieldName, int iCount, float *values)
+void CGE_SetNodeFieldValue_MFRotation(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFRotation!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFRotation)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFRotation)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFString(const char *szNodeName, const char *szFieldName, int iCount, const char **values)
+void CGE_SetNodeFieldValue_MFString(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, const char **values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFString!=NULL)
-        (*pfrd_CGE_SetNodeFieldValue_MFString)(szNodeName, szFieldName, iCount, values);
+        (*pfrd_CGE_SetNodeFieldValue_MFString)(contextHandle, szNodeName, szFieldName, iCount, values);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_IncreaseSceneTime(float fTimeS)
+void CGE_IncreaseSceneTime(int contextHandle, float fTimeS)
 {
-	if (pfrd_CGE_IncreaseSceneTime!=NULL)
-        (*pfrd_CGE_IncreaseSceneTime)(fTimeS);
+    if (pfrd_CGE_IncreaseSceneTime!=NULL)
+        (*pfrd_CGE_IncreaseSceneTime)(contextHandle, fTimeS);
 }
