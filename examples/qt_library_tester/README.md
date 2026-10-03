@@ -22,4 +22,4 @@ Note: The library (for now) exposes only a tiny subset of _Castle Game Engine_ p
 
     _Note for Windows_: It's easiest to copy the `castleengine.dll` to the same directory as example `xxx.exe`. Then just execute the exe in any way. Alternatively, put the `dll` file somewhere that is listed on `$PATH`.
 
-    _Note for Linux_: It's easiest to call it from command-line and set `LD_LIBRARY_PATH` earlier. Like this: `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/$CASTLE_ENGINE_PATH/src/deprecated_library/" && ./qt_library_tester` .
+    _Note for Linux_: It's easiest to call it from command-line and set `LD_LIBRARY_PATH` earlier. Like this: `export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:.../castle-library-model-viewer" && ./qt_library_tester` .

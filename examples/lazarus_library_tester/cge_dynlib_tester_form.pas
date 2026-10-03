@@ -12,7 +12,8 @@
 
   ----------------------------------------------------------------------------
 
-  This is a test project for our library in src/deprecated_library/.
+  This is a test project for our library
+  in castle-library-model-viewer repository.
   It uses library API (through the castlelib_dynloader unit),
   and uses a compiled dynamic library with the engine.
 
@@ -31,7 +32,7 @@
 
   HOW TO RUN THIS: prior to running this project,
   compile and copy the shared library
-  (in src/deprecated_library/) to a place where it can be loaded:
+  (in castle-library-model-viewer/) to a place where it can be loaded:
 
   - Windows: copy castleengine.dll to this project folder
     (where the executable file is generated), or anywhere on $PATH.
@@ -44,7 +45,7 @@
     Or you can explicitly list the directory with libcastleengine.so,
     by doing this (in your shell, or even in your ~/.bashrc or similar file):
 
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH":"$CASTLE_ENGINE_PATH"/src/deprecated_library/
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH":.../castle-library-model-viewer/
 }
 unit cge_dynlib_tester_form;
 
