@@ -42,8 +42,6 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          repository: castle-engine/castle-engine
 
       - name: Install FPC+Lazarus
         run: |
@@ -64,11 +62,9 @@ jobs:
 
       - name: Build
         run: |
-          cd src/deprecated_library/
           ./castleengine_compile.sh
           ZIP_NAME=castle-library-model-viewer_${FPC_OS}-${FPC_CPU}.zip
           zip -r ${ZIP_NAME} *.${{ matrix.library_extension }}
-          mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
         uses: actions/upload-artifact@v7
@@ -83,22 +79,15 @@ jobs:
     runs-on: ubuntu-latest
     container: kambi/castle-engine-cloud-builds-tools:cge-unstable
     steps:
-      # Although CGE is already available in the container,
-      # check it out again, to be prepared for future when library code
-      # will move to this repo (castle-engine/castle-library-model-viewer).
       - uses: actions/checkout@v7
-        with:
-          repository: castle-engine/castle-engine
 
       - name: Build Win32
         run: |
-          cd src/deprecated_library/
           TARGET_OS=win32
           TARGET_CPU=i386
           castle-engine compile --verbose --os=$TARGET_OS --cpu=$TARGET_CPU
           ZIP_NAME=castle-library-model-viewer_${TARGET_OS}-${TARGET_CPU}.zip
           zip -r ${ZIP_NAME} *.dll
-          mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
         uses: actions/upload-artifact@v7
@@ -126,8 +115,6 @@ jobs:
           cpu_info: cpuinfo/raspberrypi_zero2_w_arm64_w
     steps:
       - uses: actions/checkout@v7
-        with:
-          repository: castle-engine/castle-engine
 
       - uses: pguyot/arm-runner-action@v2
         with:
@@ -160,11 +147,9 @@ jobs:
             FPC_CPU=`fpc -iTP`
 
             # Build and Pack Library
-            cd src/deprecated_library/
             castle-engine compile --verbose --os=${FPC_OS} --cpu=${FPC_CPU}
             ZIP_NAME=castle-library-model-viewer_${FPC_OS}-${FPC_CPU}.zip
             zip -r ${ZIP_NAME} *.so
-            mv ${ZIP_NAME} ../../
 
       - name: Archive Artifacts
         uses: actions/upload-artifact@v7
