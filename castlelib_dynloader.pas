@@ -31,7 +31,7 @@
      listed on $LD_LIBRARY_PATH (or in one of the predefined directories,
      like /usr/lib; see "man dlopen" for details). For local testing,
      it's usually most comfortable to set LD_LIBRARY_PATH to just contain
-     .../castle_game_engine/src/deprecated_library/ directory.
+     this directory.
 
   3. Include castlelib_dynloader in your source files. Library is automatically
      initialized. Just call CGE_xxx functions as usual.
@@ -273,74 +273,74 @@ const
   ecgeurlProcessingCopyToOutputDir      = 4;
 
 type
-  TLibraryCallbackProc = function (eCode, iParam1, iParam2: cInt32; szParam: pcchar):cInt32; cdecl;
+  TCgeLibraryCallbackProc = function (contextHandle: cInt32; eCode, iParam1, iParam2: cInt32; szParam: pcchar):cInt32; cdecl;
   ppcchar = ^pcchar;
 
 procedure CGE_Initialize(ApplicationConfigDirectory: PCChar); cdecl; external 'castleengine';
 procedure CGE_Finalize(); cdecl; external 'castleengine';
-procedure CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32); cdecl; external 'castleengine';
-procedure CGE_Close(QuitWhenNoOpenWindows: cBool); cdecl; external 'castleengine';
+function CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32): cInt32; cdecl; external 'castleengine';
+procedure CGE_Close(contextHandle: cInt32; QuitWhenNoOpenWindows: cBool); cdecl; external 'castleengine';
 procedure CGE_GetOpenGLInformation(szBuffer: pchar; nBufSize: cInt32); cdecl; external 'castleengine';
 procedure CGE_GetCastleEngineVersion(szBuffer: pchar; nBufSize: cInt32); cdecl; external 'castleengine';
-procedure CGE_Resize(uiViewWidth, uiViewHeight: cUInt32); cdecl; external 'castleengine';
-procedure CGE_Render(); cdecl; external 'castleengine';
-procedure CGE_SaveScreenshotToFile(szFile: pcchar); cdecl; external 'castleengine';
-procedure CGE_SetLibraryCallbackProc(aProc: TLibraryCallbackProc); cdecl; external 'castleengine';
-procedure CGE_Update(); cdecl; external 'castleengine';
-procedure CGE_MouseDown(X, Y: cInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl; external 'castleengine';
-procedure CGE_Motion(X, Y: cInt32; FingerIndex: CInt32); cdecl; external 'castleengine';
-procedure CGE_MouseUp(X, Y: cInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl; external 'castleengine';
-procedure CGE_MouseWheel(zDelta: cFloat; bVertical: cBool); cdecl; external 'castleengine';
-procedure CGE_KeyDown(eKey: CInt32); cdecl; external 'castleengine';
-procedure CGE_KeyUp(eKey: CInt32); cdecl; external 'castleengine';
-procedure CGE_LoadSceneFromFile(szFile: pcchar); cdecl; external 'castleengine';
-procedure CGE_SaveSceneToFile(szFile: pcchar; eUrlProcessing: cInt32); cdecl; external 'castleengine';
-function CGE_GetViewpointsCount(): cInt32; cdecl; external 'castleengine';
-procedure CGE_GetViewpointName(iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl; external 'castleengine';
-procedure CGE_MoveToViewpoint(iViewpointIdx: cInt32; bAnimated: cBool); cdecl; external 'castleengine';
-procedure CGE_AddViewpointFromCurrentView(szName: pcchar); cdecl; external 'castleengine';
-procedure CGE_GetBoundingBox(pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl; external 'castleengine';
-procedure CGE_GetViewCoords(pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ,
+procedure CGE_Resize(contextHandle: cInt32; uiViewWidth, uiViewHeight: cUInt32); cdecl; external 'castleengine';
+procedure CGE_Render(contextHandle: cInt32); cdecl; external 'castleengine';
+procedure CGE_SaveScreenshotToFile(contextHandle: cInt32; szFile: pcchar); cdecl; external 'castleengine';
+procedure CGE_SetLibraryCallbackProc(contextHandle: cInt32; aProc: TCgeLibraryCallbackProc); cdecl; external 'castleengine';
+procedure CGE_Update(contextHandle: cInt32); cdecl; external 'castleengine';
+procedure CGE_MouseDown(contextHandle: cInt32; X, Y: cInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl; external 'castleengine';
+procedure CGE_Motion(contextHandle: cInt32; X, Y: cInt32; FingerIndex: CInt32); cdecl; external 'castleengine';
+procedure CGE_MouseUp(contextHandle: cInt32; X, Y: cInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl; external 'castleengine';
+procedure CGE_MouseWheel(contextHandle: cInt32; zDelta: cFloat; bVertical: cBool); cdecl; external 'castleengine';
+procedure CGE_KeyDown(contextHandle: cInt32; eKey: CInt32); cdecl; external 'castleengine';
+procedure CGE_KeyUp(contextHandle: cInt32; eKey: CInt32); cdecl; external 'castleengine';
+procedure CGE_LoadSceneFromFile(contextHandle: cInt32; szFile: pcchar); cdecl; external 'castleengine';
+procedure CGE_SaveSceneToFile(contextHandle: cInt32; szFile: pcchar; eUrlProcessing: cInt32); cdecl; external 'castleengine';
+function CGE_GetViewpointsCount(contextHandle: cInt32): cInt32; cdecl; external 'castleengine';
+procedure CGE_GetViewpointName(contextHandle: cInt32; iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl; external 'castleengine';
+procedure CGE_MoveToViewpoint(contextHandle: cInt32; iViewpointIdx: cInt32; bAnimated: cBool); cdecl; external 'castleengine';
+procedure CGE_AddViewpointFromCurrentView(contextHandle: cInt32; szName: pcchar); cdecl; external 'castleengine';
+procedure CGE_GetBoundingBox(contextHandle: cInt32; pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl; external 'castleengine';
+procedure CGE_GetViewCoords(contextHandle: cInt32; pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ,
                             pfUpX, pfUpY, pfUpZ, pfGravX, pfGravY, pfGravZ: pcfloat); cdecl; external 'castleengine';
-procedure CGE_MoveViewToCoords(fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ,
+procedure CGE_MoveViewToCoords(contextHandle: cInt32; fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ,
                                fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ: cFloat;
                                bAnimated: cBool); cdecl; external 'castleengine';
-procedure CGE_SetNavigationInputShortcut(eInput, eKey1, eKey2, eMouseButton, eMouseWheel: cInt32); cdecl; external 'castleengine';
-function CGE_GetNavigationType(): cInt32; cdecl; external 'castleengine';
-procedure CGE_SetNavigationType(NewType: cInt32); cdecl; external 'castleengine';
-procedure CGE_SetTouchInterface(eMode: cInt32); cdecl; external 'castleengine';
-procedure CGE_SetAutoTouchInterface(AutomaticTouchInterface: cBool); cdecl; external 'castleengine';
-procedure CGE_SetWalkNavigationMouseDragMode(eMode: cInt32); cdecl; external 'castleengine';
+procedure CGE_SetNavigationInputShortcut(contextHandle: cInt32; eInput, eKey1, eKey2, eMouseButton, eMouseWheel: cInt32); cdecl; external 'castleengine';
+function CGE_GetNavigationType(contextHandle: cInt32): cInt32; cdecl; external 'castleengine';
+procedure CGE_SetNavigationType(contextHandle: cInt32; NewType: cInt32); cdecl; external 'castleengine';
+procedure CGE_SetTouchInterface(contextHandle: cInt32; eMode: cInt32); cdecl; external 'castleengine';
+procedure CGE_SetAutoTouchInterface(contextHandle: cInt32; AutomaticTouchInterface: cBool); cdecl; external 'castleengine';
+procedure CGE_SetWalkNavigationMouseDragMode(contextHandle: cInt32; eMode: cInt32); cdecl; external 'castleengine';
 
-procedure CGE_SetVariableInt(eVar: cInt32; nValue: cInt32); cdecl; external 'castleengine';
-function CGE_GetVariableInt(eVar: cInt32): cInt32; cdecl; external 'castleengine';
+procedure CGE_SetVariableInt(contextHandle: cInt32; eVar: cInt32; nValue: cInt32); cdecl; external 'castleengine';
+function CGE_GetVariableInt(contextHandle: cInt32; eVar: cInt32): cInt32; cdecl; external 'castleengine';
 
-procedure CGE_SetNodeFieldValue_SFFloat(szNodeName, szFieldName: pcchar; value: cFloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFDouble(szNodeName, szFieldName: pcchar; value: cDouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFInt32(szNodeName, szFieldName: pcchar; value: cInt32); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFBool(szNodeName, szFieldName: pcchar; value: cBool); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFString(szNodeName, szFieldName, szValue: pcchar); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec2f(szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec3f(szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec4f(szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec2d(szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec3d(szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFVec4d(szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_SFRotation(szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFFloat(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFDouble(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFInt32(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcint32); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFBool(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec2f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec3f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec4f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec2d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec3d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFVec4d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFRotation(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
-procedure CGE_SetNodeFieldValue_MFString(szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFFloat(contextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cFloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFDouble(contextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cDouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFInt32(contextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cInt32); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFBool(contextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cBool); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFString(contextHandle: cInt32; szNodeName, szFieldName, szValue: pcchar); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec2f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec3f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec4f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec2d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec3d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFVec4d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_SFRotation(contextHandle: cInt32; szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFFloat(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFDouble(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFInt32(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcint32); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFBool(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec2f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec3f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec4f(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec2d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec3d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFVec4d(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFRotation(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl; external 'castleengine';
+procedure CGE_SetNodeFieldValue_MFString(contextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl; external 'castleengine';
 
-procedure CGE_IncreaseSceneTime(fTimeS: cFloat); cdecl; external 'castleengine';
+procedure CGE_IncreaseSceneTime(contextHandle: cInt32; fTimeS: cFloat); cdecl; external 'castleengine';
 
 implementation
 
