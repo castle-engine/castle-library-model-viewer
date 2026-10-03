@@ -1,0 +1,28 @@
+# See https://github.com/github/linguist about the linguist attributes.
+
+# convert line endings to the current system
+*.inc linguist-language=Pascal text eol=auto
+*.lpr linguist-language=Pascal text eol=auto
+*.dpr linguist-language=Pascal text eol=auto
+*.pas linguist-language=Pascal text eol=auto
+*.lpk text eol=auto
+*.xml text eol=auto
+*.dpk text eol=auto
+*.md text eol=auto
+*.txt text eol=auto
+*.lpi text eol=auto
+*.json text eol=auto
+*.castle-user-interface text eol=auto
+*.castle-component text eol=auto
+*.castle-transform text eol=auto
+.gitignore text eol=auto
+Makefile text eol=auto
+*.iss text eol=auto
+*.h text eol=auto
+*.cpp text eol=auto
+*.dproj text eol=auto
+*.m text eol=auto
+*.plist text eol=auto
+
+# Even on Windows, shell scripts line endings must be Unix, to work with Cygwin's bash.
+*.sh text eol=lf
