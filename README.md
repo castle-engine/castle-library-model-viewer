@@ -4,7 +4,7 @@ This repository contains the code of a dynamic library using [Castle Game Engine
 
 This repository also contains the precompiled library (DLL, SO etc.) made using _GitHub Actions_.
 
-The library [exposes API in plain C](https://github.com/castle-engine/castle-engine/blob/master/src/deprecated_library/castleengine.h) (and is thus useful from any programming language), and is available for all platforms supported by Castle Game Engine (Windows, Linux, macOS, iOS...). It is used "in production" by the [Room Arranger](https://www.roomarranger.com/) for the 3D viewer on multiple platforms.
+The library [exposes API in plain C](https://github.com/castle-engine/castle-library-model-viewer/blob/master/castleengine.h) (and is thus useful from any programming language), and is available for all platforms supported by Castle Game Engine (Windows, Linux, macOS, iOS...). It is used "in production" by the [Room Arranger](https://www.roomarranger.com/) for the 3D viewer on multiple platforms.
 
 The library allows to load and render models in an application written in any programming language (C, C++, C#, Python, ...) and display the results using any technology. You initialize OpenGL(ES) context on your side, in any way, and then call library routines to render models and interact with them.
 
