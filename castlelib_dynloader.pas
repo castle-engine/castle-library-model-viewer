@@ -39,8 +39,6 @@
 
 unit castlelib_dynloader;
 
-{$I castleconf.inc}
-
 interface
 uses
   ctypes;
