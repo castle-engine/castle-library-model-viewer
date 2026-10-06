@@ -23,10 +23,10 @@
 
 QHash<int, GLWidget *> GLWidget::s_contextWidgets;
 
-GLWidget::GLWidget(const QSurfaceFormat &format, MainWindow *parent) :
+GLWidget::GLWidget(const QSurfaceFormat &format) :
     QOpenGLWindow()
 {
-    m_pMainWnd = parent;
+    m_pWnd = nullptr;
     m_bAfterInit = false;
     m_iCgeContext = -1;
     m_bLimitFPS = true;
@@ -44,6 +44,11 @@ GLWidget::~GLWidget()
     CloseCGEContext();
 }
 
+void GLWidget::SetParentWindow(SceneSubWindow *pParent)
+{
+    m_pWnd = pParent;
+}
+
 void GLWidget::OpenScene(QString const &sFilename)
 {
     m_sSceneToOpen = sFilename;
@@ -53,7 +58,7 @@ void GLWidget::OpenScene(QString const &sFilename)
     CGE_LoadSceneFromFile(m_iCgeContext, sFilename.toUtf8());
     double dPixRatio = devicePixelRatioF();
     CGE_Resize(m_iCgeContext, width()*dPixRatio, height()*dPixRatio);
-    m_pMainWnd->UpdateAfterSceneLoaded();
+    m_pWnd->UpdateAfterSceneLoaded();
 }
 
 void GLWidget::CloseCGEContext()
@@ -94,7 +99,7 @@ int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iPar
         return 1;
 
     case ecgelibNavigationTypeChanged:
-        pThis->m_pMainWnd->UpdateNavigationButtons();
+        pThis->m_pWnd->UpdateNavigationButtons();
         return 1;
 
     case ecgelibSetMousePosition:
@@ -106,8 +111,8 @@ int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iPar
 
     case ecgelibWarning:
         {
-            QString sWarning = QString::fromUtf8(szParam);
-            pThis->m_pMainWnd->AddNewWarning(sWarning);
+            if (MainWindow::Instance() != nullptr)
+                MainWindow::Instance()->AddNewWarning(QString::fromUtf8(szParam));
         }
         return 1;
     }
