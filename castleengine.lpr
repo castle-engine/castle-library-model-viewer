@@ -184,6 +184,7 @@ begin
   if ContextList = nil then
     ContextList := TObjectList.Create;
   CGEApp_Initialize(ApplicationConfigDirectory);
+  TCastleWindow.LibrarySetMultipleWindowsPossible(true);
 end;
 
 procedure CGE_Finalize(); cdecl;
@@ -422,7 +423,10 @@ begin
       Ctx.Viewport.Cursor := mcDefault;
 
     Application.MainWindow := Ctx.Window;
-    CGEApp_Update;
+    //CGEApp_Update;
+    ApplicationProperties._Update;
+    Ctx.Window.Container.EventUpdate;
+    ApplicationProperties._UpdateEnd;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Update: ' + ExceptMessage(E));
   end;
