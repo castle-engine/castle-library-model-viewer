@@ -3,6 +3,9 @@
 
 #include <QMainWindow>
 #include <QAction>
+#include <QHash>
+#include <QMdiArea>
+#include <QMdiSubWindow>
 
 class GLWidget;
 class QSurfaceFormat;
@@ -32,6 +35,8 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    GLWidget *ActiveGlWidget() const;
+    void OpenSceneInNewWindow(QString const& sFilename);
     void UpdateNavigationButtons();
     void UpdateAfterSceneLoaded();
     void MoveToViewpoint(int nView);
@@ -41,8 +46,9 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    GLWidget *m_pGlWidget;
+    QMdiArea *m_pMdiArea;
     QWidget *m_pWindowContainer;
+    QHash<QMdiSubWindow *, GLWidget *> m_sceneWindows;
     QDialog *m_pConsoleWnd;
     int m_nViewpointCount, m_iCurrentViewpoint;
     NavKeeper m_aNavKeeper;
@@ -50,6 +56,7 @@ private:
 
 private slots:
     void OnFileOpenClick();
+    void OnMdiSubWindowActivated(QMdiSubWindow *pSubWindow);
     void OnWalkClick();
     void OnFlyClick();
     void OnExamineClick();

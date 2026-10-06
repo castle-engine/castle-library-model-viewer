@@ -21,6 +21,7 @@
 #include <QFileDialog>
 #include <QPlainTextEdit>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QVBoxLayout>
 
 #include <castleengine.h>
@@ -32,9 +33,19 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
 
     m_nViewpointCount = m_iCurrentViewpoint = 0;
-    m_pConsoleWnd = NULL;
+    m_pConsoleWnd = nullptr;
+    m_pMdiArea = new QMdiArea(this);
+    m_pMdiArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_pMdiArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    m_pMdiArea->setViewMode(QMdiArea::SubWindowView);
+    m_pMdiArea->setOption(QMdiArea::DontMaximizeSubWindowOnActivation, false);
+    setCentralWidget(m_pMdiArea);
+    connect(m_pMdiArea, SIGNAL(subWindowActivated(QMdiSubWindow*)), this, SLOT(OnMdiSubWindowActivated(QMdiSubWindow*)));
 
     CGE_LoadLibrary();
+    // Get config dir, see https://stackoverflow.com/questions/4369661/qt-how-to-save-a-configuration-file-on-multiple-platforms
+    QString configDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+    CGE_Initialize(configDir.toUtf8());
 
     // load settings
     QSettings aSettings("castleengine", "qt_library_tester");
@@ -45,12 +56,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QSurfaceFormat aFormat;
     SetSurfaceFormat(&aFormat);
     aFormat.setSamples(ui->actionMultiSampling->isChecked() ? 4 : 0);
-
     QSurfaceFormat::setDefaultFormat(aFormat);
-
-    m_pGlWidget = new GLWidget(aFormat, this);    // init with multisampling
-    m_pWindowContainer = QWidget::createWindowContainer(m_pGlWidget, this);
-    setCentralWidget(m_pWindowContainer);
 
     connect(ui->actionOpen, SIGNAL(triggered()), this, SLOT(OnFileOpenClick()));
     connect(ui->actionWalk, SIGNAL(triggered()), this, SLOT(OnWalkClick()));
@@ -71,8 +77,9 @@ MainWindow::MainWindow(QWidget *parent) :
 MainWindow::~MainWindow()
 {
     SaveSettings();
-    if (m_pGlWidget != nullptr)
-        m_pGlWidget->CloseCGEContext();
+    for (GLWidget *pGlWidget : m_sceneWindows.values())
+        if (pGlWidget != nullptr)
+            pGlWidget->CloseCGEContext();
     delete ui;
     CGE_Finalize();
 }
@@ -102,20 +109,64 @@ void MainWindow::SaveSettings()
     aSettings.setValue("multiSampling", ui->actionMultiSampling->isChecked());
 }
 
+GLWidget *MainWindow::ActiveGlWidget() const
+{
+    return m_sceneWindows.value(m_pMdiArea->activeSubWindow(), nullptr);
+}
+
+void MainWindow::OpenSceneInNewWindow(QString const& sFilename)
+{
+    if (sFilename.isEmpty())
+        return;
+
+    QSurfaceFormat aFormat;
+    SetSurfaceFormat(&aFormat);
+    aFormat.setSamples(ui->actionMultiSampling->isChecked() ? 4 : 0);
+
+    GLWidget *pGlWidget = new GLWidget(aFormat, this);
+    QWidget *pWindowContainer = QWidget::createWindowContainer(pGlWidget, this);
+    QMdiSubWindow *pSubWindow = m_pMdiArea->addSubWindow(pWindowContainer);
+    pSubWindow->setAttribute(Qt::WA_DeleteOnClose, true);
+    pSubWindow->setWindowTitle(QFileInfo(sFilename).fileName());
+    pSubWindow->resize(640, 480);
+    m_sceneWindows.insert(pSubWindow, pGlWidget);
+    pSubWindow->show();
+    m_pMdiArea->setActiveSubWindow(pSubWindow);
+    pGlWidget->OpenScene(sFilename);
+}
+
 void MainWindow::OnFileOpenClick()
 {
-    QString sFile = QFileDialog::getOpenFileName(this, tr("Open Scene"), m_sLastUsedFolder, tr("3D scenes") +
+    QStringList sFiles = QFileDialog::getOpenFileNames(this, tr("Open Scene"), m_sLastUsedFolder, tr("3D scenes") +
         " (*.wrl *.wrl.gz *.wrz *.x3d *.x3dz *.x3d.gz *.x3dv *.x3dvz *.x3dv.gz *.kanim *.castle-anim-frames *.dae *.iv *.3ds *.md3 *.obj *.geo *.json *.stl *.gltf *.glb)");
-    if (!sFile.isEmpty())
+    if (sFiles.isEmpty())
+        return;
+
+    foreach (const QString &sFile, sFiles)
     {
         m_sLastUsedFolder = QFileInfo(sFile).absolutePath();
-        m_pGlWidget->OpenScene(sFile);
+        OpenSceneInNewWindow(sFile);
     }
+}
+
+void MainWindow::OnMdiSubWindowActivated(QMdiSubWindow *pSubWindow)
+{
+    if (pSubWindow == nullptr)
+        return;
+    GLWidget *pGlWidget = m_sceneWindows.value(pSubWindow, nullptr);
+    if (pGlWidget != nullptr)
+        UpdateAfterSceneLoaded();
+    else
+        ui->menuViewpoints->clear();
 }
 
 void MainWindow::UpdateNavigationButtons()
 {
-    ECgeNavigationType eNav = (ECgeNavigationType)CGE_GetNavigationType(m_pGlWidget->m_iCgeContext);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
+    ECgeNavigationType eNav = (ECgeNavigationType)CGE_GetNavigationType(pGlWidget->m_iCgeContext);
     ui->actionWalk->setChecked(eNav == ecgenavWalk);
     ui->actionFly->setChecked(eNav == ecgenavFly);
     ui->actionExamine->setChecked(eNav == ecgenavExamine);
@@ -124,33 +175,49 @@ void MainWindow::UpdateNavigationButtons()
 
 void MainWindow::OnWalkClick()
 {
-    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavWalk);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+    CGE_SetNavigationType(pGlWidget->m_iCgeContext, ecgenavWalk);
 }
 
 void MainWindow::OnFlyClick()
 {
-    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavFly);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+    CGE_SetNavigationType(pGlWidget->m_iCgeContext, ecgenavFly);
 }
 
 void MainWindow::OnExamineClick()
 {
-    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavExamine);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+    CGE_SetNavigationType(pGlWidget->m_iCgeContext, ecgenavExamine);
 }
 
 void MainWindow::OnTurntableClick()
 {
-    CGE_SetNavigationType(m_pGlWidget->m_iCgeContext, ecgenavTurntable);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+    CGE_SetNavigationType(pGlWidget->m_iCgeContext, ecgenavTurntable);
 }
 
 void MainWindow::UpdateAfterSceneLoaded()
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     ui->menuViewpoints->clear();
     // show viewpoints available
-    int nCount = CGE_GetViewpointsCount(m_pGlWidget->m_iCgeContext);
+    int nCount = CGE_GetViewpointsCount(pGlWidget->m_iCgeContext);
     for (int i = 0; i < nCount; i++)
     {
         char sName[512];
-        CGE_GetViewpointName(m_pGlWidget->m_iCgeContext, i, sName, 512);
+        CGE_GetViewpointName(pGlWidget->m_iCgeContext, i, sName, 512);
         ActionWithTag *pAct = new ActionWithTag(QString::fromUtf8(sName), i, ui->menuViewpoints);
         connect(pAct, SIGNAL(triggered()), this, SLOT(OnMoveToViewpointClick()));
         ui->menuViewpoints->addAction(pAct);
@@ -158,13 +225,13 @@ void MainWindow::UpdateAfterSceneLoaded()
     m_iCurrentViewpoint = 0;
     m_nViewpointCount = nCount;
 
-    ui->actionHead_Bobbing->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing)>0);
-    ui->actionHeadlight->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarHeadlight)>0);
-    ui->actionSSAO->setChecked(CGE_GetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarEffectSSAO)>0);
+    ui->actionHead_Bobbing->setChecked(CGE_GetVariableInt(pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing)>0);
+    ui->actionHeadlight->setChecked(CGE_GetVariableInt(pGlWidget->m_iCgeContext, ecgevarHeadlight)>0);
+    ui->actionSSAO->setChecked(CGE_GetVariableInt(pGlWidget->m_iCgeContext, ecgevarEffectSSAO)>0);
 
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarPreventInfiniteFallingDown, 1);
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarPreventInfiniteFallingDown, 1);
 
-    if (m_aNavKeeper.ApplyState(m_pGlWidget->m_iCgeContext))  // when scene loading was caused by reloading (changing multisampling, etc)
+    if (m_aNavKeeper.ApplyState(pGlWidget->m_iCgeContext))  // when scene loading was caused by reloading (changing multisampling, etc)
         UpdateNavigationButtons();
 }
 
@@ -187,10 +254,14 @@ void MainWindow::OnPrevViewClick()
 
 void MainWindow::MoveToViewpoint(int nView)
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     if (nView < 0) nView = m_nViewpointCount-1; // for cycling
     if (nView > m_nViewpointCount) nView = 0;
     m_iCurrentViewpoint = nView;
-    CGE_MoveToViewpoint(m_pGlWidget->m_iCgeContext, m_iCurrentViewpoint, true);
+    CGE_MoveToViewpoint(pGlWidget->m_iCgeContext, m_iCurrentViewpoint, true);
 }
 
 ActionWithTag::ActionWithTag(QString const& sCaption, int nTag, QObject * parent)
@@ -201,49 +272,81 @@ ActionWithTag::ActionWithTag(QString const& sCaption, int nTag, QObject * parent
 
 void MainWindow::MenuSoftShadowsClick()
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     bool bSwitchOn = ui->actionSSAO->isChecked();
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarEffectSSAO, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarEffectSSAO, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::MenuAntiAliasingClick()
 {
-    // keep camera position
-    m_aNavKeeper.SaveState(m_pGlWidget->m_iCgeContext);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
 
-    QString sScene = m_pGlWidget->m_sSceneToOpen;
-    takeCentralWidget();
-    delete m_pWindowContainer;
-    m_pWindowContainer = nullptr;
-    delete m_pGlWidget;
-    m_pGlWidget = nullptr;
+    QMdiSubWindow *pSubWindow = nullptr;
+    for (auto it = m_sceneWindows.begin(); it != m_sceneWindows.end(); ++it)
+    {
+        if (it.value() == pGlWidget)
+        {
+            pSubWindow = it.key();
+            break;
+        }
+    }
+    if (pSubWindow == nullptr)
+        return;
+
+    m_aNavKeeper.SaveState(pGlWidget->m_iCgeContext);
+    QString sScene = pGlWidget->m_sSceneToOpen;
+    pGlWidget->CloseCGEContext();
 
     QSurfaceFormat aFormat;
     SetSurfaceFormat(&aFormat);
     aFormat.setSamples(ui->actionMultiSampling->isChecked() ? 4 : 0);
 
-    m_pGlWidget = new GLWidget(aFormat, this);    // init with multisampling
-    m_pWindowContainer = QWidget::createWindowContainer(m_pGlWidget, this);
-    setCentralWidget(m_pWindowContainer);
-    m_pGlWidget->OpenScene(sScene);
-    m_pWindowContainer->setFocus();
+    GLWidget *pNewGlWidget = new GLWidget(aFormat, this);
+    QWidget *pOldContainer = pSubWindow->widget();
+    QWidget *pNewContainer = QWidget::createWindowContainer(pNewGlWidget, pSubWindow);
+    pSubWindow->setWidget(pNewContainer);
+    m_sceneWindows[pSubWindow] = pNewGlWidget;
+
+    if (pOldContainer != nullptr)
+        pOldContainer->deleteLater();
+
+    pNewGlWidget->OpenScene(sScene);
+    pNewContainer->setFocus();
 }
 
 void MainWindow::MenuWalkingEffectClick()
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     bool bSwitchOn = ui->actionHead_Bobbing->isChecked();
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarWalkHeadBobbing, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::MenuMouseLookClick()
 {
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarMouseLook, 1);
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarCrossHair, 1);
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarMouseLook, 1);
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarCrossHair, 1);
 }
 
 void MainWindow::on_actionHeadlight_triggered()
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     bool bSwitchOn = ui->actionHeadlight->isChecked();
-    CGE_SetVariableInt(m_pGlWidget->m_iCgeContext, ecgevarHeadlight, bSwitchOn ? 1 : 0);
+    CGE_SetVariableInt(pGlWidget->m_iCgeContext, ecgevarHeadlight, bSwitchOn ? 1 : 0);
 }
 
 void MainWindow::AddNewWarning(QString const& sWarning)
@@ -278,13 +381,17 @@ void MainWindow::MenuShowWarningClick()
 
 void MainWindow::MenuOpenGLInfoClick()
 {
-    m_pGlWidget->makeCurrent();
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr)
+        return;
+
+    pGlWidget->makeCurrent();
 
     char szBuf[16000];
     memset(szBuf, 0, sizeof(szBuf));
     CGE_GetOpenGLInformation(szBuf, sizeof(szBuf));
 
-    m_pGlWidget->doneCurrent();
+    pGlWidget->doneCurrent();
 
     QDialog aDlg(this);
     aDlg.setWindowTitle(tr("OpenGL Information"));
@@ -305,10 +412,14 @@ void MainWindow::MenuOpenGLInfoClick()
 
 void MainWindow::on_actionSave_Screenshot_triggered()
 {
+    GLWidget *pGlWidget = ActiveGlWidget();
+    if (pGlWidget == nullptr || pGlWidget->m_iCgeContext == -1)
+        return;
+
     QString sFile = QFileDialog::getSaveFileName(this, "Save as image", "CGE-Screenshot.jpg", "JPEG (*.jpg)");
     if (sFile.isEmpty()) return;
 
-    CGE_SaveScreenshotToFile(m_pGlWidget->m_iCgeContext, sFile.toUtf8());  // TODO: this filename string conversion is not perfect: should be in filesystem representation, not utf8
+    CGE_SaveScreenshotToFile(pGlWidget->m_iCgeContext, sFile.toUtf8());  // TODO: this filename string conversion is not perfect: should be in filesystem representation, not utf8
 }
 
 NavKeeper::NavKeeper()

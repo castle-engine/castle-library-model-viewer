@@ -1,6 +1,7 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
+#include <QHash>
 #include <QOpenGLWindow>
 
 class MainWindow;
@@ -49,6 +50,7 @@ protected:
     void PrintContextInfo(const QString &sTitle);
 
 private:
+    static QHash<int, GLWidget *> s_contextWidgets;
     MainWindow *m_pMainWnd;
     bool m_bAfterInit;
     bool m_bNeedsDisplay;

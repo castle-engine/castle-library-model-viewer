@@ -15,19 +15,17 @@
 
 #include <QOpenGLFunctions>
 #include <QMouseEvent>
-#include <QStandardPaths>
 #include <QTimer>
 #include <castleengine.h>
 
 #include "glwidget.h"
 #include "mainwindow.h"
 
-GLWidget *g_pThis = NULL;
+QHash<int, GLWidget *> GLWidget::s_contextWidgets;
 
 GLWidget::GLWidget(const QSurfaceFormat &format, MainWindow *parent) :
     QOpenGLWindow()
 {
-    g_pThis = this;
     m_pMainWnd = parent;
     m_bAfterInit = false;
     m_iCgeContext = -1;
@@ -43,7 +41,7 @@ GLWidget::GLWidget(const QSurfaceFormat &format, MainWindow *parent) :
 
 GLWidget::~GLWidget()
 {
-    g_pThis = NULL;
+    CloseCGEContext();
 }
 
 void GLWidget::OpenScene(QString const &sFilename)
@@ -62,6 +60,7 @@ void GLWidget::CloseCGEContext()
 {
     if (m_iCgeContext != -1)
     {
+        s_contextWidgets.remove(m_iCgeContext);
         CGE_Close(m_iCgeContext, true);
         m_iCgeContext = -1;
     }
@@ -69,12 +68,14 @@ void GLWidget::CloseCGEContext()
 
 int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iParam1, int iParam2, const char *szParam)
 {
-    if (g_pThis == NULL || !g_pThis->m_bAfterInit) return 0;
+    GLWidget *pThis = s_contextWidgets.value(contextHandle, nullptr);
+    if (pThis == nullptr || !pThis->m_bAfterInit)
+        return 0;
 
     switch (eCode)
     {
     case ecgelibNeedsDisplay:
-        g_pThis->m_bNeedsDisplay = true;
+        pThis->m_bNeedsDisplay = true;
         return 1;
 
     case ecgelibSetMouseCursor:
@@ -88,17 +89,17 @@ int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iPar
             case ecgecursorNone: aNewCur.setShape(Qt::BlankCursor); break;
             default: aNewCur.setShape(Qt::ArrowCursor);
             }
-            g_pThis->setCursor(aNewCur);
+            pThis->setCursor(aNewCur);
         }
         return 1;
 
     case ecgelibNavigationTypeChanged:
-        g_pThis->m_pMainWnd->UpdateNavigationButtons();
+        pThis->m_pMainWnd->UpdateNavigationButtons();
         return 1;
 
     case ecgelibSetMousePosition:
         {
-            QPoint ptNew = g_pThis->mapToGlobal(QPoint(iParam1, g_pThis->height() - 1 - iParam2));
+            QPoint ptNew = pThis->mapToGlobal(QPoint(iParam1, pThis->height() - 1 - iParam2));
             QCursor::setPos(ptNew.x(), ptNew.y());
         }
         return 1;
@@ -106,7 +107,7 @@ int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iPar
     case ecgelibWarning:
         {
             QString sWarning = QString::fromUtf8(szParam);
-            g_pThis->m_pMainWnd->AddNewWarning(sWarning);
+            pThis->m_pMainWnd->AddNewWarning(sWarning);
         }
         return 1;
     }
@@ -116,10 +117,8 @@ int CDECL GLWidget::OpenGlLibraryCallback(int contextHandle, int eCode, int iPar
 void GLWidget::initializeGL()
 {
     double dPixRatio = devicePixelRatioF();
-    // Get config dir, see https://stackoverflow.com/questions/4369661/qt-how-to-save-a-configuration-file-on-multiple-platforms
-    QString configDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
-    CGE_Initialize(configDir.toUtf8());
     m_iCgeContext = CGE_Open(ecgeofLog, width()*dPixRatio, height()*dPixRatio, logicalDpiY());
+    s_contextWidgets.insert(m_iCgeContext, this);
     CGE_SetAutoTouchInterface(m_iCgeContext, false);
     CGE_SetLibraryCallbackProc(m_iCgeContext, OpenGlLibraryCallback);
     m_bAfterInit = true;
@@ -143,11 +142,11 @@ void GLWidget::OnUpdateTimer()
 {
     if (!m_bAfterInit) return;
 
-    makeCurrent();  // be sure we have the right context set
+    // be sure we have the right context set
+    if (QOpenGLContext::currentContext() != context())
+        makeCurrent();
 
     CGE_Update(m_iCgeContext);
-
-    doneCurrent();
 
     if (!m_bLimitFPS || m_bNeedsDisplay)
     {
