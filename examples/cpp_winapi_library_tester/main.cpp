@@ -60,6 +60,7 @@ int       g_windowWidth;
 int       g_windowHeight;
 bool      g_isFullScreen;
 bool      g_hasFocus;
+bool      g_isRendering = false;
 
 //-----------------------------------------------------------------------------
 int g_nViewpointCount = 0;
@@ -164,14 +165,21 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
         break;
 
-    case WM_ERASEBKGND:
-        if (IsWindowEnabled(hWnd))
+    case WM_PAINT:
+    {
+        PAINTSTRUCT ps;
+        BeginPaint(hWnd, &ps);
+        if (g_hDC && g_hRC)
         {
+            g_isRendering = true;
             wglMakeCurrent(g_hDC, g_hRC);
-            CGE_Render();			// do not draw in WM_PAINT (inspired in CastleWindow)
+            CGE_Render();
             SwapBuffers(g_hDC);
+            g_isRendering = false;
         }
-        return TRUE;
+        EndPaint(hWnd, &ps);
+        return 0;
+    }
 
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -342,7 +350,8 @@ int __cdecl OpenGlLibraryCallback(int eCode, int iParam1, int iParam2, const cha
     switch (eCode)
     {
     case ecgelibNeedsDisplay:
-        InvalidateRect(g_hWnd, NULL, TRUE);
+        if (!g_isRendering)
+            InvalidateRect(g_hWnd, NULL, FALSE);
         return 1;
 
     case ecgelibSetMouseCursor:

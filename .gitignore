@@ -69,9 +69,9 @@ castle-game-engine-*.fpm
 
 .qtcreator/
 qt_library_tester/build/
-cpp_winapi_library_tester/Debug/
-cpp_winapi_library_tester/Release/
-cpp_winapi_library_tester/x64/
+examples/cpp_winapi_library_tester/Debug/
+examples/cpp_winapi_library_tester/Release/
+examples/cpp_winapi_library_tester/x64/
 lazarus_library_tester/*.app
 lazarus_library_tester/cge_dynlib_tester/
 build-*/
