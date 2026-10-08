@@ -63,6 +63,7 @@ bool      g_hasFocus;
 bool      g_isRendering = false;
 
 //-----------------------------------------------------------------------------
+int g_contextHandle = -1;
 int g_nViewpointCount = 0;
 int g_nCurrentViewpoint;
 
@@ -173,7 +174,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         {
             g_isRendering = true;
             wglMakeCurrent(g_hDC, g_hRC);
-            CGE_Render();
+            CGE_Render(g_contextHandle);
             SwapBuffers(g_hDC);
             g_isRendering = false;
         }
@@ -183,24 +184,24 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        CGE_MouseDown(GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam), msg==WM_LBUTTONDOWN, 0);
+        CGE_MouseDown(g_contextHandle, GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam), msg==WM_LBUTTONDOWN, 0);
         SetCapture(hWnd);
         break;
 
     case WM_MOUSEMOVE:
-        CGE_Motion(GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam), 0);
+        CGE_Motion(g_contextHandle, GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam), 0);
         break;
 
     case WM_LBUTTONUP:
     case WM_RBUTTONUP:
-        CGE_MouseUp(GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam),
+        CGE_MouseUp(g_contextHandle, GET_X_LPARAM(lParam), g_windowHeight-1-GET_Y_LPARAM(lParam),
             msg==WM_LBUTTONUP, 0);
         if (GetCapture()==hWnd)
             ReleaseCapture();
         break;
 
     case WM_MOUSEWHEEL:
-        CGE_MouseWheel(GET_WHEEL_DELTA_WPARAM(wParam), true);
+        CGE_MouseWheel(g_contextHandle, GET_WHEEL_DELTA_WPARAM(wParam), true);
         break;
 
     case WM_CHAR:
@@ -211,30 +212,30 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
 
         case 's':
-            CGE_SaveScreenshotToFile("screenshot.jpg");
+            CGE_SaveScreenshotToFile(g_contextHandle, "screenshot.jpg");
             break;
 
         case 'f':
-            CGE_SetNavigationType(ecgenavFly);
+            CGE_SetNavigationType(g_contextHandle, ecgenavFly);
             break;
 
         case 'e':
-            CGE_SetNavigationType(ecgenavExamine);
+            CGE_SetNavigationType(g_contextHandle, ecgenavExamine);
             break;
 
         case 'o':
             {
-                int nVal = CGE_GetVariableInt(ecgevarEffectSSAO);
+                int nVal = CGE_GetVariableInt(g_contextHandle, ecgevarEffectSSAO);
                 if (nVal < 0) nVal = 0;
-                CGE_SetVariableInt(ecgevarEffectSSAO, 1-nVal);
+                CGE_SetVariableInt(g_contextHandle, ecgevarEffectSSAO, 1-nVal);
             }
             break;
 
         case 'h':
             {
-                int nVal = CGE_GetVariableInt(ecgevarWalkHeadBobbing);
+                int nVal = CGE_GetVariableInt(g_contextHandle, ecgevarWalkHeadBobbing);
                 if (nVal < 0) nVal = 0;
-                CGE_SetVariableInt(ecgevarWalkHeadBobbing, 1-nVal);
+                CGE_SetVariableInt(g_contextHandle, ecgevarWalkHeadBobbing, 1-nVal);
             }
             break;
 
@@ -253,7 +254,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     g_nCurrentViewpoint--;
                 else
                     g_nCurrentViewpoint = g_nViewpointCount-1;
-                CGE_MoveToViewpoint(g_nCurrentViewpoint, true);
+                CGE_MoveToViewpoint(g_contextHandle, g_nCurrentViewpoint, true);
             }
             break;
 
@@ -264,7 +265,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     g_nCurrentViewpoint++;
                 else
                     g_nCurrentViewpoint = 0;
-                CGE_MoveToViewpoint(g_nCurrentViewpoint, true);
+                CGE_MoveToViewpoint(g_contextHandle, g_nCurrentViewpoint, true);
             }
             break;
         default:
@@ -280,7 +281,7 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_SIZE:
         g_windowWidth = LOWORD(lParam);
         g_windowHeight = HIWORD(lParam);
-        CGE_Resize(g_windowWidth, g_windowHeight);
+        CGE_Resize(g_contextHandle, g_windowWidth, g_windowHeight);
         break;
 
     case WM_SYSKEYDOWN:
@@ -345,7 +346,7 @@ HWND CreateAppWindow(const WNDCLASSEX &wcl, const char *pszTitle)
 }
 
 //-----------------------------------------------------------------------------
-int __cdecl OpenGlLibraryCallback(int eCode, int iParam1, int iParam2, const char *szParam)
+int __cdecl OpenGlLibraryCallback(int contextHandle, int eCode, int iParam1, int iParam2, const char *szParam)
 {
     switch (eCode)
     {
@@ -390,9 +391,9 @@ bool Init()
         // c:/Users/<username>/AppData/Local/cpp_winapi_library_tester/cpp_winapi_library_tester.log
         // See https://castle-engine.io/manual_log.php
         CGE_Initialize(applicationConfigDirectory);
-        CGE_Open(ecgeofLog, g_windowWidth, g_windowHeight, 96);
-        CGE_SetLibraryCallbackProc(OpenGlLibraryCallback);
-        CGE_SetAutoTouchInterface(false);
+        g_contextHandle = CGE_Open(ecgeofLog, g_windowWidth, g_windowHeight, 96);
+        CGE_SetLibraryCallbackProc(g_contextHandle, OpenGlLibraryCallback);
+        CGE_SetAutoTouchInterface(g_contextHandle, false);
         //CGE_LoadSceneFromFile("c:\\projects\\humanoid_stand.wrl");
         ShowOpenFileDialog();
         return true;
@@ -499,13 +500,13 @@ void ToggleFullScreen()
 
         SetWindowPos(g_hWnd, HWND_NOTOPMOST, rcSaved.left, rcSaved.top, g_windowWidth, g_windowHeight, SWP_SHOWWINDOW);
     }
-    CGE_Resize(g_windowWidth, g_windowHeight);
+    CGE_Resize(g_contextHandle, g_windowWidth, g_windowHeight);
 }
 
 //-----------------------------------------------------------------------------
 void OnIdle()
 {
-    CGE_Update();
+    CGE_Update(g_contextHandle);
 }
 
 //-----------------------------------------------------------------------------
@@ -528,15 +529,15 @@ void ShowOpenFileDialog()
     ofn.Flags = OFN_PATHMUSTEXIST|OFN_FILEMUSTEXIST;
     if (GetOpenFileName(&ofn))
     {
-        CGE_LoadSceneFromFile(szFile);
+        CGE_LoadSceneFromFile(g_contextHandle, szFile);
 
         // show viewpoints available
         std::string sViewpointList;
-        int nCount = CGE_GetViewpointsCount();
+        int nCount = CGE_GetViewpointsCount(g_contextHandle);
         for (int i = 0; i < nCount; i++)
         {
             char sName[512];
-            CGE_GetViewpointName(i, sName, 512);
+            CGE_GetViewpointName(g_contextHandle, i, sName, 512);
             sViewpointList += sName;
             sViewpointList += "\n";
         }
