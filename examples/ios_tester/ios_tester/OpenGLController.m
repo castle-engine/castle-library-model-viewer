@@ -208,7 +208,8 @@
 
     // Get a directory where we can write files,
     // see http://stackoverflow.com/questions/1567134/how-can-i-get-a-writable-path-on-the-iphone/1567147#1567147
-    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES);
+    // Use same path as in castle-engine/tools/build-tool/data/ios/xcode_project/cge_project_name/OpenGLController.m
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
     NSString *libraryDirectory = [paths objectAtIndex:0];
 
     CGE_Initialize([libraryDirectory fileSystemRepresentation]);
