@@ -34,76 +34,174 @@
 library castleengine;
 
 uses CTypes, Math, SysUtils, CastleUtils,
-  Classes, CastleKeysMouse, CastleCameras, CastleVectors, CastleGLUtils, CastleGLVersion,
+  Classes, Contnrs, CastleKeysMouse, CastleCameras, CastleVectors, CastleGLUtils, CastleGLVersion,
   CastleImages, CastleSceneCore, CastleUIControls, X3DNodes, X3DFields, X3DLoad, CastleLog,
   CastleBoxes, CastleControls, CastleInputs, CastleApplicationProperties,
   CastleWindow, CastleViewport, CastleScene, CastleTransform, CastleStringUtils;
 
 type
   ppcchar = ^pcchar;
+  TCgeLibraryCallbackProc = function (ContextHandle: cInt32; eCode: cInt32; iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
+
+  TLibraryContext = class;
+
   TCrosshairManager = class(TObject)
+  private
+    FOwnerCtx: TLibraryContext;
   public
     CrosshairCtl: TCastleCrosshair;
     CrosshairActive: boolean;
 
-    constructor Create;
+    constructor Create(const AOwner: TLibraryContext);
     destructor Destroy; override;
 
     procedure UpdateCrosshairImage;
     procedure OnPointingDeviceSensorsChange(Sender: TObject);
   end;
 
+  TLibraryContext = class(TObject)
+  public
+    Handle: cInt32;
+    Window: TCastleWindow;
+    { Using TCastleAutoNavigationViewport in this case is justified,
+      it is the most straightforward solution to make viewport navigation
+      follow X3D navigation. }
+    {$warnings off}
+    Viewport: TCastleAutoNavigationViewport;
+    {$warnings on}
+    MainScene: TCastleScene; //< Always equal to Viewport.Items.MainScene
+    PreviousNavigationType: TNavigationType;
+    TouchNavigation: TCastleTouchNavigation;
+    Crosshair: TCrosshairManager;
+    LibraryCallbackProc: TCgeLibraryCallbackProc;
+
+    constructor Create;
+    destructor Destroy; override;
+  end;
+
 var
-  Window: TCastleWindow;
-  { Using TCastleAutoNavigationViewport in this case is justified,
-    it is the most straightforward solution to make viewport navigation
-    follow X3D navigation. }
-  {$warnings off}
-  Viewport: TCastleAutoNavigationViewport;
-  {$warnings on}
-  MainScene: TCastleScene; //< Always equal to Viewport.Items.MainScene
-  PreviousNavigationType: TNavigationType;
-  TouchNavigation: TCastleTouchNavigation;
-  Crosshair: TCrosshairManager;
+  ContextList: TObjectList = nil;
+  NextContextHandle: cInt32 = 1;
+
+constructor TLibraryContext.Create;
+begin
+  inherited;
+end;
+
+destructor TLibraryContext.Destroy;
+begin
+  FreeAndNil(Crosshair);
+  FreeAndNil(Window);
+  inherited;
+end;
+
+function CGE_FindContextByHandle(const ContextHandle: cInt32): TLibraryContext;
+var
+  I: Integer;
+  Ctx: TLibraryContext;
+begin
+  Result := nil;
+  if (ContextList = nil) or (ContextList.Count = 0) then
+    exit;
+  for I := 0 to ContextList.Count - 1 do
+  begin
+    Ctx := TLibraryContext(ContextList[I]);
+    if Ctx.Handle = ContextHandle then
+      exit(Ctx);
+  end;
+end;
+
+function CGE_FindContextByWindow(Window: TCastleWindow): TLibraryContext;
+var
+  I: Integer;
+  Ctx: TLibraryContext;
+begin
+  Result := nil;
+  if (ContextList = nil) or (ContextList.Count = 0) then
+    exit;
+  for I := 0 to ContextList.Count - 1 do
+  begin
+    Ctx := TLibraryContext(ContextList[I]);
+    if Ctx.Window = Window then
+      exit(Ctx);
+  end;
+end;
+
+function CGE_CreateContext: TLibraryContext;
+begin
+  Result := TLibraryContext.Create;
+  Result.Handle := NextContextHandle;
+  Inc(NextContextHandle);
+  ContextList.Add(Result);
+end;
+
+procedure CGE_ContextDestroy(Ctx: TLibraryContext); cdecl;
+var
+  Index: Integer;
+begin
+  try
+    if (Ctx = nil) or (ContextList = nil) then
+      Exit;
+
+    Index := ContextList.IndexOf(Ctx);
+    if Index >= 0 then
+      ContextList.Delete(Index);    // also calls Destroy on the object, as the list owns them
+  except
+    on E: TObject do WritelnWarning('Window', 'CGE_ContextDestroy: ' + ExceptMessage(E));
+  end;
+end;
 
 {$WARN 6058 off: Ignore warning Call to subroutine "$1" marked as inline is not inlined}
 
 { Check that CGE_Open was called, and at least Window and Viewport are created. }
-function CGE_VerifyWindow(const FromFunc: string): boolean;
+function CGE_VerifyWindow(const FromFunc: string; Ctx: TLibraryContext): boolean;
 begin
   Result :=
-    (Window <> nil) and
-    (Viewport <> nil);
+    (Ctx <> nil) and
+    (Ctx.Window <> nil) and
+    (Ctx.Viewport <> nil);
   if not Result then
     WarningWrite(FromFunc + ' : CGE window not initialized (CGE_Open not called)');
 end;
 
 { Check that CGE_LoadSceneFromFile was called,
   and at least Window and Viewport and MainScene are created. }
-function CGE_VerifyScene(const FromFunc: string): boolean;
+function CGE_VerifyScene(const FromFunc: string; Ctx: TLibraryContext): boolean;
 begin
   Result :=
-    (Window <> nil) and
-    (Viewport <> nil) and
-    (MainScene <> nil);
+    (Ctx <> nil) and
+    (Ctx.Window <> nil) and
+    (Ctx.Viewport <> nil) and
+    (Ctx.MainScene <> nil);
   {$warnings off} // using Viewport.Items.MainScene is this case is justified
-  Assert((not Result) or (Viewport.Items.MainScene = MainScene));
+  Assert((not Result) or (Ctx.Viewport.Items.MainScene = Ctx.MainScene));
   if not Result then
     WarningWrite(FromFunc + ': CGE scene not initialized (CGE_LoadSceneFromFile not called)');
 end;
 
 procedure CGE_Initialize(ApplicationConfigDirectory: PChar); cdecl;
 begin
+  if ContextList = nil then
+    ContextList := TObjectList.Create;
   CGEApp_Initialize(ApplicationConfigDirectory);
+  TCastleWindow.LibrarySetMultipleWindowsPossible(true);
 end;
 
 procedure CGE_Finalize(); cdecl;
 begin
   CGEApp_Finalize();
+  if ContextList <> nil then
+  begin
+    ContextList.Free;
+    ContextList := nil;
+  end;
 end;
 
-procedure CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32); cdecl;
+function CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32): cInt32; cdecl;
+var
+  Ctx: TLibraryContext;
 begin
+  Result := -1;
   try
     if (flags and 1 {ecgeofSaveMemory}) > 0 then
     begin
@@ -113,54 +211,57 @@ begin
     if (flags and 2 {ecgeofLog}) > 0 then
       InitializeLog;
 
-    Window := TCastleWindow.Create(nil);
-    Application.MainWindow := Window;
+    Ctx := CGE_CreateContext;
 
-    Viewport := TCastleAutoNavigationViewport.Create(Window);
-    Viewport.FullSize := true;
+    Ctx.Window := TCastleWindow.Create(nil);
+    Ctx.Viewport := TCastleAutoNavigationViewport.Create(Ctx.Window);
+    Ctx.Viewport.FullSize := true;
     { AutoCamera is necessary for Viewport.Camera to follow X3D file camera,
       not only at initialization (this is done by AssignDefaultCamera) but also
       when new viewpoint node is bound using X3D events or
       TCastleSceneCore.MoveToViewpoint call. }
-    Viewport.AutoCamera := true;
+    Ctx.Viewport.AutoCamera := true;
     { AutoNavigation is necessary for navigation to follow routes in X3D file.
       For example when changing navigation by X3D events in
       demo-models/navigation/navigation_info_bind.x3dv , to make it affect actual
       CGE navigation. }
-    Viewport.AutoNavigation := true;
-    Window.Controls.InsertFront(Viewport);
+    Ctx.Viewport.AutoNavigation := true;
+    Ctx.Window.Controls.InsertFront(Ctx.Viewport);
 
-    TouchNavigation := TCastleTouchNavigation.Create(Window);
-    TouchNavigation.FullSize := true;
-    TouchNavigation.Viewport := Viewport;
-    Window.Controls.InsertFront(TouchNavigation);
+    Ctx.TouchNavigation := TCastleTouchNavigation.Create(Ctx.Window);
+    Ctx.TouchNavigation.FullSize := true;
+    Ctx.TouchNavigation.Viewport := Ctx.Viewport;
+    Ctx.Window.Controls.InsertFront(Ctx.TouchNavigation);
 
-    PreviousNavigationType := Viewport.NavigationType;
+    Ctx.PreviousNavigationType := Ctx.Viewport.NavigationType;
 
+    Application.MainWindow := Ctx.Window;
     CGEApp_Open(InitialWidth, InitialHeight, 0, 0, 0, 0, Dpi);
 
-    Crosshair := TCrosshairManager.Create;
+    Ctx.Crosshair := TCrosshairManager.Create(Ctx);
+    Result := Ctx.Handle;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Open: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_Close(QuitWhenNoOpenWindows: CBool); cdecl;
+procedure CGE_Close(ContextHandle: cInt32; QuitWhenNoOpenWindows: CBool); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_Close') then Exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_Close', Ctx) then exit;
 
-    if MainScene <> nil then
-      MainScene.OnPointingDeviceSensorsChange := nil;
-    FreeAndNil(Crosshair);
+    if Ctx.MainScene <> nil then
+      Ctx.MainScene.OnPointingDeviceSensorsChange := nil;
+    FreeAndNil(Ctx.Crosshair);
 
+    Application.MainWindow := Ctx.Window;
     CGEApp_Close(QuitWhenNoOpenWindows);
-    FreeAndNil(Window);
+    Application.MainWindow := nil;
 
-    // nil things owned by Window, to avoid having dangling pointers
-    MainScene := nil;
-    Viewport := nil;
-    TouchNavigation := nil;
+    CGE_ContextDestroy(Ctx);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Close: ' + ExceptMessage(E));
   end;
@@ -190,73 +291,116 @@ begin
   end;
 end;
 
-procedure CGE_Resize(uiViewWidth, uiViewHeight: cUInt32); cdecl;
+procedure CGE_Resize(ContextHandle: cInt32; uiViewWidth, uiViewHeight: cUInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_Resize') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_Resize', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_Resize(uiViewWidth, uiViewHeight, 0, 0, 0, 0);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Resize: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_Render; cdecl;
+procedure CGE_Render(ContextHandle: cInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_Render') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_Render', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_Render;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Render: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SaveScreenshotToFile(szFile: pcchar); cdecl;
+procedure CGE_SaveScreenshotToFile(ContextHandle: cInt32; szFile: pcchar); cdecl;
 var
+  Ctx: TLibraryContext;
   Image: TRGBImage;
 begin
   try
-    if not CGE_VerifyWindow('CGE_SaveScreenshotToFile') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_SaveScreenshotToFile', Ctx) then exit;
 
     // hide touch controls
-    TouchNavigation.Exists := false;
+    Ctx.TouchNavigation.Exists := false;
 
     // make screenshot
-    Image := Window.SaveScreen;
+    Image := Ctx.Window.SaveScreen;
     try
       SaveImage(Image, StrPas(PChar(szFile)));
     finally FreeAndNil(Image) end;
 
     // restore hidden controls
-    TouchNavigation.Exists := true;
+    Ctx.TouchNavigation.Exists := true;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_SaveScreenshotToFile: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SetLibraryCallbackProc(aProc: TLibraryCallbackProc); cdecl;
+function CGE_InternalLibraryCallback(eCode, iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
+var
+  Ctx: TLibraryContext;
+  Window: TCastleWindow;  // this should be a function parameter
+  I: Integer;
 begin
-  if Window = nil then exit;
-  CGEApp_SetLibraryCallbackProc(aProc);
+  Window := Application.MainWindow; // TODO: extend TLibraryCallbackProc with Window (Sender) parameter
+  if Window = nil then
+  begin
+    // when Window is nil, pass to all callbacks
+    for I := 0 to ContextList.Count - 1 do
+    begin
+      Ctx := TLibraryContext(ContextList[I]);
+      if Assigned(Ctx.LibraryCallbackProc) then
+        Ctx.LibraryCallbackProc(-1, eCode, iParam1, iParam2, szParam);
+    end;
+    Result := 0;
+    exit;
+  end;
+  Ctx := CGE_FindContextByWindow(Window);
+  if (Ctx <> nil) and Assigned(Ctx.LibraryCallbackProc) then
+    Result := Ctx.LibraryCallbackProc(Ctx.Handle, eCode, iParam1, iParam2, szParam)
+  else
+    Result := 0;
 end;
 
-procedure CGE_Update; cdecl;
+procedure CGE_SetLibraryCallbackProc(ContextHandle: cInt32; aProc: TCgeLibraryCallbackProc); cdecl;
+var
+  Ctx: TLibraryContext;
+begin
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if not CGE_VerifyWindow('CGE_SetLibraryCallbackProc', Ctx) then exit;
+  Ctx.LibraryCallbackProc := aProc;
+  CGEApp_SetLibraryCallbackProc(@CGE_InternalLibraryCallback);
+end;
+
+procedure CGE_Update(ContextHandle: cInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_Update') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_Update', Ctx) then exit;
 
     { Call LibraryCallbackProc(ecgelibNavigationTypeChanged,...) when necessary.
       For this, we just query the Viewport.NavigationType every frame. }
-    if PreviousNavigationType <> Viewport.NavigationType then
+    if Ctx.PreviousNavigationType <> Ctx.Viewport.NavigationType then
     begin
-      PreviousNavigationType := Viewport.NavigationType;
-      if Assigned(LibraryCallbackProc) then
+      Ctx.PreviousNavigationType := Ctx.Viewport.NavigationType;
+      if Assigned(Ctx.LibraryCallbackProc) then
       begin
-        case Viewport.NavigationType of
-          ntWalk     : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavWalk     , 0, nil);
-          ntFly      : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavFly      , 0, nil);
-          ntExamine  : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavExamine  , 0, nil);
-          ntTurntable: LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavTurntable, 0, nil);
-          ntNone     : LibraryCallbackProc(ecgelibNavigationTypeChanged, ecgenavNone     , 0, nil);
+        case Ctx.Viewport.NavigationType of
+          ntWalk     : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavWalk     , 0, nil);
+          ntFly      : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavFly      , 0, nil);
+          ntExamine  : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavExamine  , 0, nil);
+          ntTurntable: Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavTurntable, 0, nil);
+          ntNone     : Ctx.LibraryCallbackProc(Ctx.Handle, ecgelibNavigationTypeChanged, ecgenavNone     , 0, nil);
           // nt2D: TODO
           else WritelnWarning('Window', 'Current NavigationType cannot be expressed as enum for ecgelibNavigationTypeChanged');
         end;
@@ -268,120 +412,152 @@ begin
       (after https://github.com/castle-engine/castle-engine/commit/5b2810d9ef2fd0f851bc50b0a6aa7b414381dd2c )
       but it makes total sense for X3D viewers with single viewport and single
       TCastleScene. }
-    if (MainScene <> nil) and
-      ( ( (MainScene.PointingDeviceSensors <> nil) and
-          (MainScene.PointingDeviceSensors.EnabledCount <> 0)
+    if (Ctx.MainScene <> nil) and
+      ( ( (Ctx.MainScene.PointingDeviceSensors <> nil) and
+          (Ctx.MainScene.PointingDeviceSensors.EnabledCount <> 0)
         ) or
-        (MainScene.PointingDeviceActiveSensors.Count <> 0)
+        (Ctx.MainScene.PointingDeviceActiveSensors.Count <> 0)
       ) then
-      Viewport.Cursor := mcHand
+      Ctx.Viewport.Cursor := mcHand
     else
-      Viewport.Cursor := mcDefault;
+      Ctx.Viewport.Cursor := mcDefault;
 
-    CGEApp_Update;
+    Application.MainWindow := Ctx.Window;
+    //CGEApp_Update;
+    ApplicationProperties._Update;
+    Ctx.Window.Container.EventUpdate;
+    ApplicationProperties._UpdateEnd;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Update: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_MouseDown(X, Y: CInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl;
+procedure CGE_MouseDown(ContextHandle: cInt32; X, Y: CInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_MouseDown') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_MouseDown', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_MouseDown(X, Y, bLeftBtn, FingerIndex);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_MouseDown: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_Motion(X, Y: CInt32; FingerIndex: CInt32); cdecl;
+procedure CGE_Motion(ContextHandle: cInt32; X, Y: CInt32; FingerIndex: CInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_Motion') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_Motion', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_Motion(X, Y, FingerIndex);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_Motion: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_MouseUp(X, Y: cInt32; bLeftBtn: cBool;
+procedure CGE_MouseUp(ContextHandle: cInt32; X, Y: cInt32; bLeftBtn: cBool;
   FingerIndex: CInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_MouseUp') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_MouseUp', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_MouseUp(X, Y, bLeftBtn, FingerIndex);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_MouseUp: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_MouseWheel(zDelta: cFloat; bVertical: cBool); cdecl;
+procedure CGE_MouseWheel(ContextHandle: cInt32; zDelta: cFloat; bVertical: cBool); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_MouseWheel') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_MouseWheel', Ctx) then exit;
     // TODO: no corresponding CGEApp callback, as not implemented in iOS code
     // (in ios_tested not used anyway, because USE_GESTURE_RECOGNIZERS
     // undefined, and also --- pinch is not really a mouse wheel)
-    Window.LibraryMouseWheel(zDelta/120, bVertical);
+    Ctx.Window.LibraryMouseWheel(zDelta/120, bVertical);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_MouseWheel: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_KeyDown(eKey: CInt32); cdecl;
+procedure CGE_KeyDown(ContextHandle: cInt32; eKey: CInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_KeyDown') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_KeyDown', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_KeyDown(eKey);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_KeyDown: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_KeyUp(eKey: CInt32); cdecl;
+procedure CGE_KeyUp(ContextHandle: cInt32; eKey: CInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_KeyUp') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_KeyUp', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
     CGEApp_KeyUp(eKey);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_KeyUp: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_LoadSceneFromFile(szFile: pcchar); cdecl;
+procedure CGE_LoadSceneFromFile(ContextHandle: cInt32; szFile: pcchar); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
-  if Window = nil then exit;
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if (Ctx = nil) or (Ctx.Window = nil) then exit;
   try
-    FreeAndNil(MainScene); // if any previous scene exists, remove it
+    FreeAndNil(Ctx.MainScene); // if any previous scene exists, remove it
 
-    MainScene := TCastleScene.Create(Window);
-    MainScene.Load(StrPas(PChar(szFile)));
-    MainScene.PreciseCollisions := true;
-    MainScene.ProcessEvents := true;
-    MainScene.ListenPressRelease := true; // necessary to pass keys to X3D sensors
-    Viewport.Items.Add(MainScene);
+    Ctx.MainScene := TCastleScene.Create(Ctx.Window);
+    Ctx.MainScene.Load(StrPas(PChar(szFile)));
+    Ctx.MainScene.PreciseCollisions := true;
+    Ctx.MainScene.ProcessEvents := true;
+    Ctx.MainScene.ListenPressRelease := true; // necessary to pass keys to X3D sensors
+    Ctx.Viewport.Items.Add(Ctx.MainScene);
     { While CGE deprecated Items.MainScene, it is justified and recommended
       solution in this case, to make MainScene affect various things
       (skybox, fog, camera, navigation etc.). }
     {$warnings off}
-    Viewport.Items.MainScene := MainScene;
+    Ctx.Viewport.Items.MainScene := Ctx.MainScene;
     {$warnings on}
 
-    Viewport.AssignDefaultCamera;
-    Viewport.AssignDefaultNavigation;
+    Ctx.Viewport.AssignDefaultCamera;
+    Ctx.Viewport.AssignDefaultNavigation;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_LoadSceneFromFile: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SaveSceneToFile(szFile: pcchar; eUrlProcessing: cInt32); cdecl;
+procedure CGE_SaveSceneToFile(ContextHandle: cInt32; szFile: pcchar; eUrlProcessing: cInt32); cdecl;
 var
   SaveFileName: string;
   UrlProcessing: TUrlProcessing;
   RootNodeCopy: TX3DRootNode;
   SaveOptions: TCastleSceneSaveOptions;
+  Ctx: TLibraryContext;
 begin
-  if not CGE_VerifyScene('CGE_SaveSceneToFile') then
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if not CGE_VerifyScene('CGE_SaveSceneToFile', Ctx) then
     exit;
   try
     SaveFileName := StrPas(PChar(szFile));
@@ -395,10 +571,10 @@ begin
     end;
     if UrlProcessing = suNone then
     begin
-      MainScene.Save(SaveFileName)
+      Ctx.MainScene.Save(SaveFileName)
     end else
     begin
-      RootNodeCopy := MainScene.RootNode.DeepCopy as TX3DRootNode;
+      RootNodeCopy := Ctx.MainScene.RootNode.DeepCopy as TX3DRootNode;
       try
         ProcessUrls(RootNodeCopy, SaveFileName, UrlProcessing);
         SaveOptions := TCastleSceneSaveOptions.Create(nil);
@@ -417,16 +593,19 @@ begin
   end;
 end;
 
-function CGE_GetViewpointsCount(): cInt32; cdecl;
+function CGE_GetViewpointsCount(ContextHandle: cInt32): cInt32; cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyScene('CGE_GetViewpointsCount') then
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_GetViewpointsCount', Ctx) then
     begin
       Result := 0;
       exit;
     end;
 
-    Result := MainScene.ViewpointsCount;
+    Result := Ctx.MainScene.ViewpointsCount;
   except
     on E: TObject do
     begin
@@ -436,51 +615,61 @@ begin
   end;
 end;
 
-procedure CGE_GetViewpointName(iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl;
+procedure CGE_GetViewpointName(ContextHandle: cInt32; iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   sName: string;
 begin
   try
-    if not CGE_VerifyScene('CGE_GetViewpointName') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_GetViewpointName', Ctx) then exit;
 
-    sName := MainScene.GetViewpointName(iViewpointIdx);
+    sName := Ctx.MainScene.GetViewpointName(iViewpointIdx);
     StrPLCopy(szName, sName, nBufSize-1);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_GetViewpointName: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_MoveToViewpoint(iViewpointIdx: cInt32; bAnimated: cBool); cdecl;
+procedure CGE_MoveToViewpoint(ContextHandle: cInt32; iViewpointIdx: cInt32; bAnimated: cBool); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyScene('CGE_MoveToViewpoint') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_MoveToViewpoint', Ctx) then exit;
 
-    MainScene.MoveToViewpoint(iViewpointIdx, bAnimated);
+    Ctx.MainScene.MoveToViewpoint(iViewpointIdx, bAnimated);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_MoveToViewpoint: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_AddViewpointFromCurrentView(szName: pcchar); cdecl;
+procedure CGE_AddViewpointFromCurrentView(ContextHandle: cInt32; szName: pcchar); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyScene('CGE_AddViewpointFromCurrentView') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_AddViewpointFromCurrentView', Ctx) then exit;
 
-    MainScene.AddViewpointFromNavigation(
-      Viewport.RequiredNavigation, StrPas(PChar(szName)));
+    Ctx.MainScene.AddViewpointFromNavigation(
+      Ctx.Viewport.RequiredNavigation, StrPas(PChar(szName)));
   except
     on E: TObject do WritelnWarning('Window', 'CGE_AddViewpointFromCurrentView: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_GetBoundingBox(pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl;
+procedure CGE_GetBoundingBox(ContextHandle: cInt32; pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   BBox: TBox3D;
 begin
   try
-    if not CGE_VerifyScene('CGE_GetBoundingBox') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_GetBoundingBox', Ctx) then exit;
 
-    BBox := MainScene.BoundingBox;
+    BBox := Ctx.MainScene.BoundingBox;
     pfXMin^ := BBox.Data[0].X; pfXMax^ := BBox.Data[1].X;
     pfYMin^ := BBox.Data[0].Y; pfYMax^ := BBox.Data[1].Y;
     pfZMin^ := BBox.Data[0].Z; pfZMax^ := BBox.Data[1].Z;
@@ -489,16 +678,18 @@ begin
   end;
 end;
 
-procedure CGE_GetViewCoords(pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ,
+procedure CGE_GetViewCoords(ContextHandle: cInt32; pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ,
                             pfUpX, pfUpY, pfUpZ, pfGravX, pfGravY, pfGravZ: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   Pos, Dir, Up, GravityUp: TVector3;
 begin
   try
-    if not CGE_VerifyWindow('CGE_GetViewCoords') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_GetViewCoords', Ctx) then exit;
 
-    Viewport.Camera.GetWorldView(Pos, Dir, Up);
-    GravityUp := Viewport.Camera.GravityUp;
+    Ctx.Viewport.Camera.GetWorldView(Pos, Dir, Up);
+    GravityUp := Ctx.Viewport.Camera.GravityUp;
     pfPosX^ := Pos.X; pfPosY^ := Pos.Y; pfPosZ^ := Pos.Z;
     pfDirX^ := Dir.X; pfDirY^ := Dir.Y; pfDirZ^ := Dir.Z;
     pfUpX^ := Up.X; pfUpY^ := Up.Y; pfUpZ^ := Up.Z;
@@ -508,32 +699,35 @@ begin
   end;
 end;
 
-procedure CGE_MoveViewToCoords(fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ,
+procedure CGE_MoveViewToCoords(ContextHandle: cInt32; fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ,
                                fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ: cFloat;
                                bAnimated: cBool); cdecl;
 var
+  Ctx: TLibraryContext;
   Pos, Dir, Up, GravityUp: TVector3;
 begin
   try
-    if not CGE_VerifyWindow('CGE_MoveViewToCoords') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_MoveViewToCoords', Ctx) then exit;
 
     Pos.X := fPosX; Pos.Y := fPosY; Pos.Z := fPosZ;
     Dir.X := fDirX; Dir.Y := fDirY; Dir.Z := fDirZ;
     Up.X := fUpX; Up.Y := fUpY; Up.Z := fUpZ;
     GravityUp.X := fGravX; GravityUp.Y := fGravY; GravityUp.Z := fGravZ;
     if bAnimated then
-      Viewport.Camera.AnimateTo(Pos, Dir, Up, 0.5)
+      Ctx.Viewport.Camera.AnimateTo(Pos, Dir, Up, 0.5)
     else
-      Viewport.Camera.SetWorldView(Pos, Dir, Up);
-    Viewport.Camera.GravityUp := GravityUp;
+      Ctx.Viewport.Camera.SetWorldView(Pos, Dir, Up);
+    Ctx.Viewport.Camera.GravityUp := GravityUp;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_MoveViewToCoords: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SetNavigationInputShortcut(eInput, eKey1, eKey2,
+procedure CGE_SetNavigationInputShortcut(ContextHandle: cInt32; eInput, eKey1, eKey2,
                                eMouseButton, eMouseWheel: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   Nav: TCastleNavigation;
   WalkNavigation: TCastleWalkNavigation;
   ExamineNavigation: TCastleExamineNavigation;
@@ -546,7 +740,8 @@ var
   InMouseWheel: TMouseWheelDirection;
 begin
   try
-    if not CGE_VerifyWindow('CGE_SetCameraInputShortcut') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_SetNavigationInputShortcut', Ctx) then exit;
 
     InKey1 := TKey(eKey1);
     InKey2 := TKey(eKey2);
@@ -568,7 +763,7 @@ begin
     end;
 
     InputShortcut := nil;
-    Nav := Viewport.RequiredNavigation;
+    Nav := Ctx.Viewport.RequiredNavigation;
     if Nav is TCastleWalkNavigation then
     begin
       WalkNavigation := TCastleWalkNavigation(Nav);
@@ -591,7 +786,7 @@ begin
         24: InputShortcut := WalkNavigation.Input_MoveSpeedDec;
         25: InputShortcut := WalkNavigation.Input_Jump;
         26: InputShortcut := WalkNavigation.Input_Crouch;
-        else raise EInternalError.CreateFmt('CGE_SetCameraInputShortcut: Invalid input type %d for walk navigation', [eInput]);
+        else raise EInternalError.CreateFmt('CGE_SetNavigationInputShortcut: Invalid input type %d for walk navigation', [eInput]);
       end;
       if InputShortcut <> nil then
         InputShortcut.Assign(InKey1, InKey2, InKeyString, InMouseButtonUse, InMouseButton, InMouseWheel);
@@ -605,22 +800,25 @@ begin
         31: InputShortcut := ExamineNavigation.Input_Rotate;
         32: InputShortcut := ExamineNavigation.Input_Move;
         33: InputShortcut := ExamineNavigation.Input_Zoom;
-        else raise EInternalError.CreateFmt('CGE_SetCameraInputShortcut: Invalid input type %d for examine navigation', [eInput]);
+        else raise EInternalError.CreateFmt('CGE_SetNavigationInputShortcut: Invalid input type %d for examine navigation', [eInput]);
       end;
       if InputShortcut <> nil then
         InputShortcut.Assign(InKey1, InKey2, InKeyString, InMouseButtonUse, InMouseButton, InMouseWheel);
     end;
   except
-    on E: TObject do WritelnLog('Window', 'CGE_SetCameraInputShortcut: ' + ExceptMessage(E));
+    on E: TObject do WritelnLog('Window', 'CGE_SetNavigationInputShortcut: ' + ExceptMessage(E));
   end;
 end;
 
-function CGE_GetNavigationType(): cInt32; cdecl;
+function CGE_GetNavigationType(ContextHandle: cInt32): cInt32; cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    if not CGE_VerifyWindow('CGE_GetNavigationType') then Exit(-1);
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_GetNavigationType', Ctx) then Exit(-1);
 
-    case Viewport.NavigationType of
+    case Ctx.Viewport.NavigationType of
       ntWalk     : Result := 0;
       ntFly      : Result := 1;
       ntExamine  : Result := 2;
@@ -638,12 +836,14 @@ begin
   end;
 end;
 
-procedure CGE_SetNavigationType(NewType: cInt32); cdecl;
+procedure CGE_SetNavigationType(ContextHandle: cInt32; NewType: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   aNavType: TNavigationType;
 begin
   try
-    if not CGE_VerifyWindow('CGE_SetNavigationType') then exit;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyWindow('CGE_SetNavigationType', Ctx) then exit;
 
     case NewType of
       0: aNavType := ntWalk;
@@ -654,7 +854,7 @@ begin
       // TODO: aNavType := nt2D;
       else raise EInternalError.CreateFmt('CGE_SetNavigationType: Invalid navigation type %d', [NewType]);
     end;
-    Viewport.NavigationType := aNavType;
+    Ctx.Viewport.NavigationType := aNavType;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_SetNavigationType: ' + ExceptMessage(E));
   end;
@@ -683,75 +883,92 @@ begin
   end;
 end;
 
-procedure CGE_SetTouchInterface(eMode: cInt32); cdecl;
+procedure CGE_SetTouchInterface(ContextHandle: cInt32; eMode: cInt32); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    TouchNavigation.TouchInterface := cgehelper_TouchInterfaceFromConst(eMode);
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if Ctx = nil then exit;
+    Ctx.TouchNavigation.TouchInterface := cgehelper_TouchInterfaceFromConst(eMode);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_SetTouchInterface: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SetAutoTouchInterface(bAutomaticTouchInterface: cBool); cdecl;
+procedure CGE_SetAutoTouchInterface(ContextHandle: cInt32; bAutomaticTouchInterface: cBool); cdecl;
+var
+  Ctx: TLibraryContext;
 begin
   try
-    TouchNavigation.AutoTouchInterface := bAutomaticTouchInterface;
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if Ctx = nil then exit;
+    Ctx.TouchNavigation.AutoTouchInterface := bAutomaticTouchInterface;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_SetAutoTouchInterface: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_SetWalkNavigationMouseDragMode(eMode: cInt32); cdecl;
+procedure CGE_SetWalkNavigationMouseDragMode(ContextHandle: cInt32; eMode: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   NewMode: TMouseDragMode;
 begin
   try
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if Ctx = nil then exit;
     case eMode of
       0: NewMode := mdWalkRotate;
       1: NewMode := mdRotate;
       2: NewMode := mdNone;
       else raise EInternalError.CreateFmt('Invalid MouseDragMode mode %d', [eMode]);
     end;
-    Viewport.InternalWalkNavigation.MouseDragMode := NewMode;
+    Ctx.Viewport.InternalWalkNavigation.MouseDragMode := NewMode;
   except
     on E: TObject do WritelnWarning('Window', 'CGE_SetWalkNavigationMouseDragMode: ' + ExceptMessage(E));
   end;
 end;
 
-procedure CGE_IncreaseSceneTime(fTimeS: cFloat); cdecl;
+procedure CGE_IncreaseSceneTime(ContextHandle: cInt32; fTimeS: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   DummyRemoveType: TRemoveType;
 begin
   try
-    MainScene.IncreaseTime(fTimeS);
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if Ctx = nil then exit;
+
+    Ctx.MainScene.IncreaseTime(fTimeS);
     DummyRemoveType := rtNone;
-    Viewport.Camera.Update(fTimeS, DummyRemoveType);
+    Ctx.Viewport.Camera.Update(fTimeS, DummyRemoveType);
   except
     on E: TObject do WritelnWarning('Window', 'CGE_IncreaseSceneTime: ' + ExceptMessage(E));
   end;
 end;
 
-function GetWalkNavigation: TCastleWalkNavigation;
+function GetWalkNavigation(Ctx: TLibraryContext): TCastleWalkNavigation;
 var
   Nav: TCastleNavigation;
 begin
-  Nav := Viewport.RequiredNavigation;
+  Nav := Ctx.Viewport.RequiredNavigation;
   if Nav is TCastleWalkNavigation then
     Result := TCastleWalkNavigation(Nav)
   else
     Result := nil;
 end;
 
-procedure CGE_SetVariableInt(eVar: cInt32; nValue: cInt32); cdecl;
+procedure CGE_SetVariableInt(ContextHandle: cInt32; eVar: cInt32; nValue: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   WalkNavigation: TCastleWalkNavigation;
   NewUIScaling: TUIScaling;
 begin
-  if Window = nil then exit;
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if (Ctx = nil) or (Ctx.Window = nil) then exit;
   try
     case eVar of
       0: begin    // ecgevarWalkHeadBobbing
-           WalkNavigation := GetWalkNavigation;
+           WalkNavigation := GetWalkNavigation(Ctx);
            if WalkNavigation <> nil then
            begin
              if nValue > 0 then
@@ -762,58 +979,58 @@ begin
          end;
 
       1: begin    // ecgevarEffectSSAO
-           if Viewport.ScreenSpaceAmbientOcclusionAvailable then
-             Viewport.ScreenSpaceAmbientOcclusion := (nValue > 0);
+           if Ctx.Viewport.ScreenSpaceAmbientOcclusionAvailable then
+             Ctx.Viewport.ScreenSpaceAmbientOcclusion := (nValue > 0);
          end;
 
       2: begin    // ecgevarMouseLook
-           WalkNavigation := GetWalkNavigation;
+           WalkNavigation := GetWalkNavigation(Ctx);
            if WalkNavigation <> nil then
                WalkNavigation.MouseLook := (nValue > 0);
          end;
 
       3: begin    // ecgevarCrossHair
-           Crosshair.CrosshairCtl.Exists := (nValue > 0);
+           Ctx.Crosshair.CrosshairCtl.Exists := (nValue > 0);
            if nValue > 0 then
            begin
              if nValue = 2 then
-               Crosshair.CrosshairCtl.Shape := csCrossRect
+               Ctx.Crosshair.CrosshairCtl.Shape := csCrossRect
              else
-               Crosshair.CrosshairCtl.Shape := csCross;
-             Crosshair.UpdateCrosshairImage;
-             MainScene.OnPointingDeviceSensorsChange := @Crosshair.OnPointingDeviceSensorsChange;
+               Ctx.Crosshair.CrosshairCtl.Shape := csCross;
+             Ctx.Crosshair.UpdateCrosshairImage;
+             Ctx.MainScene.OnPointingDeviceSensorsChange := @Ctx.Crosshair.OnPointingDeviceSensorsChange;
            end;
          end;
 
       5: begin    // ecgevarAutoWalkTouchInterface
-           TouchNavigation.AutoWalkTouchInterface := cgehelper_TouchInterfaceFromConst(nValue);
+           Ctx.TouchNavigation.AutoWalkTouchInterface := cgehelper_TouchInterfaceFromConst(nValue);
          end;
 
       6: begin    // ecgevarScenePaused
-           Viewport.Items.Paused := (nValue > 0);
+           Ctx.Viewport.Items.Paused := (nValue > 0);
          end;
 
       7: begin    // ecgevarAutoRedisplay
-           Window.AutoRedisplay := (nValue > 0);
+           Ctx.Window.AutoRedisplay := (nValue > 0);
          end;
 
       8: begin    // ecgevarHeadlight
-           if MainScene <> nil then
-              MainScene.HeadlightOn := (nValue > 0);
+           if Ctx.MainScene <> nil then
+              Ctx.MainScene.HeadlightOn := (nValue > 0);
          end;
 
       9: begin    // ecgevarOcclusionCulling
-           if Viewport <> nil then
-              Viewport.OcclusionCulling := (nValue > 0);
+           if Ctx.Viewport <> nil then
+              Ctx.Viewport.OcclusionCulling := (nValue > 0);
          end;
 
       10: begin    // ecgevarPhongShading
-            if MainScene <> nil then
-               MainScene.RenderOptions.PhongShading := (nValue > 0);
+            if Ctx.MainScene <> nil then
+               Ctx.MainScene.RenderOptions.PhongShading := (nValue > 0);
           end;
 
       11: begin    // ecgevarPreventInfiniteFallingDown
-            Viewport.PreventInfiniteFallingDown := (nValue > 0);
+            Ctx.Viewport.PreventInfiniteFallingDown := (nValue > 0);
           end;
 
       12: begin    // ecgevarUIScaling
@@ -826,7 +1043,7 @@ begin
               5: NewUIScaling := usDpiScale;
               else raise EInternalError.CreateFmt('Invalid UIScaling mode %d', [nValue]);
             end;
-            Window.Container.UIScaling := NewUIScaling;
+            Ctx.Window.Container.UIScaling := NewUIScaling;
           end;
     end;
   except
@@ -834,16 +1051,18 @@ begin
   end;
 end;
 
-function CGE_GetVariableInt(eVar: cInt32): cInt32; cdecl;
+function CGE_GetVariableInt(ContextHandle: cInt32; eVar: cInt32): cInt32; cdecl;
 var
+  Ctx: TLibraryContext;
   WalkNavigation: TCastleWalkNavigation;
 begin
   Result := -1;
-  if Window = nil then exit;
+  Ctx := CGE_FindContextByHandle(ContextHandle);
+  if (Ctx = nil) or (Ctx.Window = nil) then exit;
   try
     case eVar of
       0: begin    // ecgevarWalkHeadBobbing
-           WalkNavigation := GetWalkNavigation;
+           WalkNavigation := GetWalkNavigation(Ctx);
            if (WalkNavigation <> nil) and (WalkNavigation.HeadBobbing > 0) then
              Result := 1
            else
@@ -851,15 +1070,15 @@ begin
          end;
 
       1: begin    // ecgevarEffectSSAO
-           if Viewport.ScreenSpaceAmbientOcclusionAvailable and
-              Viewport.ScreenSpaceAmbientOcclusion then
+           if Ctx.Viewport.ScreenSpaceAmbientOcclusionAvailable and
+              Ctx.Viewport.ScreenSpaceAmbientOcclusion then
              Result := 1
            else
              Result := 0;
          end;
 
       2: begin    // ecgevarMouseLook
-           WalkNavigation := GetWalkNavigation;
+           WalkNavigation := GetWalkNavigation(Ctx);
            if (WalkNavigation <> nil) and WalkNavigation.MouseLook then
              Result := 1
            else
@@ -867,71 +1086,71 @@ begin
          end;
 
       3: begin    // ecgevarCrossHair
-           if not Crosshair.CrosshairCtl.Exists then
+           if not Ctx.Crosshair.CrosshairCtl.Exists then
              Result := 0
            else
-           if Crosshair.CrosshairCtl.Shape = csCross then
+           if Ctx.Crosshair.CrosshairCtl.Shape = csCross then
              Result := 1
            else
-           if Crosshair.CrosshairCtl.Shape = csCrossRect then
+           if Ctx.Crosshair.CrosshairCtl.Shape = csCrossRect then
              Result := 2
            else
              Result := 1;
          end;
 
       4: begin    // ecgevarAnimationRunning
-           if Viewport.Camera.Animation then
+           if Ctx.Viewport.Camera.Animation then
              Result := 1
            else
              Result := 0;
          end;
 
       5: begin    // ecgevarAutoWalkTouchInterface
-           Result := cgehelper_ConstFromTouchInterface(TouchNavigation.AutoWalkTouchInterface);
+           Result := cgehelper_ConstFromTouchInterface(Ctx.TouchNavigation.AutoWalkTouchInterface);
          end;
 
       6: begin    // ecgevarScenePaused
-           if Viewport.Items.Paused then
+           if Ctx.Viewport.Items.Paused then
              Result := 1
            else
              Result := 0;
          end;
 
       7: begin    // ecgevarAutoRedisplay
-           if Window.AutoRedisplay then
+           if Ctx.Window.AutoRedisplay then
              Result := 1
            else
              Result := 0;
          end;
 
       8: begin    // ecgevarHeadlight
-           if (MainScene <> nil) and MainScene.HeadlightOn then
+           if (Ctx.MainScene <> nil) and Ctx.MainScene.HeadlightOn then
              Result := 1
            else
              Result := 0;
          end;
 
       9: begin    // ecgevarOcclusionCulling
-           if (Viewport <> nil) and Viewport.OcclusionCulling then
+           if (Ctx.Viewport <> nil) and Ctx.Viewport.OcclusionCulling then
              Result := 1
            else
              Result := 0;
          end;
 
       10: begin    // ecgevarPhongShading
-            if (MainScene <> nil) and MainScene.RenderOptions.PhongShading then
+            if (Ctx.MainScene <> nil) and Ctx.MainScene.RenderOptions.PhongShading then
               Result := 1 else
               Result := 0;
           end;
 
       11: begin    // ecgevarPreventInfiniteFallingDown
-            if Viewport.PreventInfiniteFallingDown then
+            if Ctx.Viewport.PreventInfiniteFallingDown then
               Result := 1 else
               Result := 0;
           end;
 
       12: begin    // ecgevarUIScaling
-            case Window.Container.UIScaling of
+            case Ctx.Window.Container.UIScaling of
               usNone:                 Result := 0;
               usEncloseReferenceSize: Result := 1;
               usEncloseReferenceSizeAutoOrientation: Result := 2;
@@ -949,13 +1168,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFFloat(szNodeName, szFieldName: pcchar; value: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFFloat(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFFloat') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFFloat', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFFloat).Send(value);
   except
@@ -963,13 +1184,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFDouble(szNodeName, szFieldName: pcchar; value: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFDouble(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cDouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFDouble') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFDouble', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFDouble).Send(value);
   except
@@ -977,13 +1200,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFInt32(szNodeName, szFieldName: pcchar; value: cInt32); cdecl;
+procedure CGE_SetNodeFieldValue_SFInt32(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFInt32') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFInt32', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFInt32).Send(value);
   except
@@ -991,13 +1216,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFBool(szNodeName, szFieldName: pcchar; value: cBool); cdecl;
+procedure CGE_SetNodeFieldValue_SFBool(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cBool); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFBool') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFBool', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFBool).Send(value);
   except
@@ -1005,13 +1232,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFString(szNodeName, szFieldName, szValue: pcchar); cdecl;
+procedure CGE_SetNodeFieldValue_SFString(ContextHandle: cInt32; szNodeName, szFieldName, szValue: pcchar); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFString') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFString', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFString).Send(PChar(szValue));
   except
@@ -1019,13 +1248,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec2f(szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec2f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec2f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec2f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec2f).Send(Vector2(val1, val2));
   except
@@ -1033,13 +1264,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec3f(szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec3f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec3f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec3f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec3f).Send(Vector3(val1, val2, val3));
   except
@@ -1047,13 +1280,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec4f(szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec4f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec4f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec4f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec4f).Send(Vector4(val1, val2, val3, val4));
   except
@@ -1061,13 +1296,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec2d(szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec2d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec2d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec2d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec2d).Send(Vector2Double(val1, val2));
   except
@@ -1075,13 +1312,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec3d(szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec3d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec3d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec3d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec3d).Send(Vector3Double(val1, val2, val3));
   except
@@ -1089,13 +1328,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec4d(szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec4d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec4d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFVec4d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFVec4d).Send(Vector4Double(val1, val2, val3, val4));
   except
@@ -1103,13 +1344,15 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFRotation(szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFRotation(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFRotation') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_SFRotation', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField <> nil then
        (aField as TSFRotation).Send(Vector4(axisX, axisY, axisZ, rotation));
   except
@@ -1117,14 +1360,16 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFFloat(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFFloat(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TSingleList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFFloat') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFFloat', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TSingleList.Create;
@@ -1137,14 +1382,16 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFDouble(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFDouble(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TDoubleList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFDouble') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFDouble', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TDoubleList.Create;
@@ -1157,14 +1404,16 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFInt32(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcInt32); cdecl;
+procedure CGE_SetNodeFieldValue_MFInt32(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcInt32); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TInt32List;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFInt32') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFInt32', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TInt32List.Create;
@@ -1177,14 +1426,16 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFBool(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl;
+procedure CGE_SetNodeFieldValue_MFBool(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TBooleanList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFBool') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFBool', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TBooleanList.Create;
@@ -1198,14 +1449,16 @@ begin
 end;
 
 // Set MFVec2f. We expect "2 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec2f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec2f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector2List;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec2f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec2f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector2List.Create;
@@ -1219,14 +1472,16 @@ begin
 end;
 
 // Set MFVec3f. We expect "3 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec3f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec3f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector3List;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec3f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec3f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector3List.Create;
@@ -1240,14 +1495,16 @@ begin
 end;
 
 // Set MFVec4f. We expect "4 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec4f(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec4f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector4List;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec4f') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec4f', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector4List.Create;
@@ -1261,14 +1518,16 @@ begin
 end;
 
 // Set MFVec2f. We expect "2 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec2d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec2d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector2DoubleList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec2d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec2d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector2DoubleList.Create;
@@ -1282,14 +1541,16 @@ begin
 end;
 
 // Set MFVec3f. We expect "3 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec3d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec3d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector3DoubleList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec3d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec3d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector3DoubleList.Create;
@@ -1303,14 +1564,16 @@ begin
 end;
 
 // Set MFVec4f. We expect "4 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec4d(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec4d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector4DoubleList;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec4d') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFVec4d', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector4DoubleList.Create;
@@ -1324,14 +1587,16 @@ begin
 end;
 
 // Set MFRotation. We expect "4 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFRotation(szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFRotation(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TVector4List;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFRotation') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFRotation', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TVector4List.Create;
@@ -1345,15 +1610,17 @@ begin
 end;
 
 // Set MFString. We expect array of "count" char* pointers to null-terminated UTF-8 strings
-procedure CGE_SetNodeFieldValue_MFString(szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl;
+procedure CGE_SetNodeFieldValue_MFString(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl;
 var
+  Ctx: TLibraryContext;
   aField: TX3DField;
   aItemList: TCastleStringList;
   i: cInt32;
 begin
   try
-    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFString') then exit;
-    aField := MainScene.Field(PChar(szNodeName), PChar(szFieldName));
+    Ctx := CGE_FindContextByHandle(ContextHandle);
+    if not CGE_VerifyScene('CGE_SetNodeFieldValue_MFString', Ctx) then exit;
+    aField := Ctx.MainScene.Field(PChar(szNodeName), PChar(szFieldName));
     if aField = nil then Exit;
 
     aItemList := TCastleStringList.Create;
@@ -1367,17 +1634,18 @@ begin
   end;
 end;
 
-constructor TCrosshairManager.Create;
+constructor TCrosshairManager.Create(const AOwner: TLibraryContext);
 begin
-  inherited;
-  CrosshairCtl := TCastleCrosshair.Create(Window);
+  inherited Create;
+  FOwnerCtx := AOwner;
+  CrosshairCtl := TCastleCrosshair.Create(FOwnerCtx.Window);
   CrosshairCtl.Exists := false;  // start as invisible
-  Window.Controls.InsertFront(CrosshairCtl);
+  FOwnerCtx.Window.Controls.InsertFront(CrosshairCtl);
 end;
 
 destructor TCrosshairManager.Destroy;
 begin
-  Window.Controls.Remove(CrosshairCtl);
+  FOwnerCtx.Window.Controls.Remove(CrosshairCtl);
   FreeAndNil(CrosshairCtl);
   inherited;
 end;
@@ -1400,7 +1668,7 @@ var
 begin
   { check if the crosshair (mouse) is over any sensor }
   OverSensor := false;
-  SensorList := MainScene.PointingDeviceSensors;
+  SensorList := FOwnerCtx.MainScene.PointingDeviceSensors;
   if (SensorList <> nil) then
     OverSensor := (SensorList.EnabledCount>0);
 

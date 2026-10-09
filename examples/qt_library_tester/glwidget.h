@@ -1,9 +1,10 @@
 #ifndef GLWIDGET_H
 #define GLWIDGET_H
 
+#include <QHash>
 #include <QOpenGLWindow>
 
-class MainWindow;
+class SceneSubWindow;
 
 /* Having OpenGL rendering done inside the QWidget enables storing it to QLayouts or use
  * another widgets along it (like toolbar).
@@ -29,25 +30,29 @@ class GLWidget : public QOpenGLWindow
 {
     Q_OBJECT
 public:
-    explicit GLWidget(const QSurfaceFormat &format, MainWindow *parent = 0);
+    explicit GLWidget(const QSurfaceFormat &format);
     ~GLWidget();
 
+    int m_iCgeContext;
     QString m_sSceneToOpen;
     bool m_bLimitFPS;
+    void SetParentWindow(SceneSubWindow *pParent);
     void OpenScene(QString const &sFilename);
+    void CloseCGEContext();
 
     // helpers
 public:
     static int QKeyToCgeKey(int qKey);
 
 protected:
-    static int OpenGlLibraryCallback(int eCode, int iParam1, int iParam2, const char *szParam);
+    static int OpenGlLibraryCallback(int contextHandle, int eCode, int iParam1, int iParam2, const char *szParam);
     QPoint PointFromMousePoint(const QPoint& pt);
     QPoint PointFromMousePoint(const QPointF& pt);
     void PrintContextInfo(const QString &sTitle);
 
 private:
-    MainWindow *m_pMainWnd;
+    static QHash<int, GLWidget *> s_contextWidgets;
+    SceneSubWindow *m_pWnd;
     bool m_bAfterInit;
     bool m_bNeedsDisplay;
     bool m_bPrintContextInfoAtPaint;

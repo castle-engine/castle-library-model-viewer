@@ -112,10 +112,11 @@ uses
 
 var
   bIgnoreNotifications: boolean;
+  ContextHandle: cInt32;
 
 {$R *.lfm}
 
-function OpenGlLibraryCallback(eCode, iParam1, iParam2: cInt32; szParam: pcchar):cInt32; cdecl;
+function OpenGlLibraryCallback(contextHandle: cInt32; eCode, iParam1, iParam2: cInt32; szParam: pcchar):cInt32; cdecl;
 begin
   case eCode of
     ecgelibNeedsDisplay: Form1.OpenGLControl1.Invalidate;
@@ -143,17 +144,17 @@ begin
   OpenGLControl1.MakeCurrent();
   Application.OnIdle := @IdleFunc;
   CGE_Initialize(PCChar(PChar(GetAppConfigDir(false))));
-  CGE_Open(ecgeofLog, OpenGLControl1.Width, OpenGLControl1.Height, 96);
-  CGE_SetLibraryCallbackProc(@OpenGlLibraryCallback);
-  CGE_SetAutoTouchInterface(false);
+  ContextHandle := CGE_Open(ecgeofLog, OpenGLControl1.Width, OpenGLControl1.Height, 96);
+  CGE_SetLibraryCallbackProc(ContextHandle, @OpenGlLibraryCallback);
+  CGE_SetAutoTouchInterface(ContextHandle, false);
   sFile := 'data/bridge_level/bridge_final.x3dv';
-  CGE_LoadSceneFromFile(@sFile[1]);
+  CGE_LoadSceneFromFile(ContextHandle, @sFile[1]);
   UpdateUIAfterOpen;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
-  CGE_Close(true);
+  CGE_Close(ContextHandle, true);
   CGE_Finalize();
 end;
 
@@ -161,7 +162,7 @@ procedure TForm1.FormResize(Sender: TObject);
 begin
   OpenGLControl1.Width := Width-OpenGLControl1.Left*2;
   OpenGLControl1.Height := Height-OpenGLControl1.Top*2;
-  CGE_Resize(OpenGLControl1.Width, OpenGLControl1.Height);
+  CGE_Resize(ContextHandle, OpenGLControl1.Width, OpenGLControl1.Height);
 end;
 
 { Convert Key (Lazarus key code) to Castle Game Engine library kcge_Xxx constant.
@@ -243,14 +244,14 @@ begin
     Example test model for this: demo-models/navigation/viewpoints_various_tests.x3dv
     (switch between 1st and 3rd viewpoints there, note that 2nd viewpoint there equals 1st). }
   case Key of
-    VK_1: CGE_MoveToViewpoint(0, ssShift in Shift);
-    VK_2: CGE_MoveToViewpoint(1, ssShift in Shift);
-    VK_3: CGE_MoveToViewpoint(2, ssShift in Shift);
+    VK_1: CGE_MoveToViewpoint(ContextHandle, 0, ssShift in Shift);
+    VK_2: CGE_MoveToViewpoint(ContextHandle, 1, ssShift in Shift);
+    VK_3: CGE_MoveToViewpoint(ContextHandle, 2, ssShift in Shift);
   end;
 
   KeyCge := KeyToCastleLibrary(Key, Shift);
   if KeyCge <> kcge_None then
-    CGE_KeyDown(KeyCge);
+    CGE_KeyDown(ContextHandle, KeyCge);
 end;
 
 procedure TForm1.OpenGLControl1KeyUp(Sender: TObject; var Key: Word;
@@ -260,7 +261,7 @@ var
 begin
   KeyCge := KeyToCastleLibrary(Key, Shift);
   if KeyCge <> kcge_None then
-    CGE_KeyUp(KeyCge);
+    CGE_KeyUp(ContextHandle, KeyCge);
 end;
 
 const
@@ -272,38 +273,38 @@ const
 procedure TForm1.OpenGLControl1MouseDown(Sender: TObject; Button: Controls.TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
-  CGE_MouseDown(x, OpenGLControl1.Height - 1 - y, Button=LeftMouseButton, 0);
+  CGE_MouseDown(ContextHandle, x, OpenGLControl1.Height - 1 - y, Button=LeftMouseButton, 0);
 end;
 
 procedure TForm1.OpenGLControl1MouseMove(Sender: TObject; Shift: TShiftState;
   X, Y: Integer);
 begin
-  CGE_Motion(x, OpenGLControl1.Height - 1 - y, 0);
+  CGE_Motion(ContextHandle, x, OpenGLControl1.Height - 1 - y, 0);
 end;
 
 procedure TForm1.OpenGLControl1MouseUp(Sender: TObject; Button: Controls.TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
-  CGE_MouseUp(x, OpenGLControl1.Height - 1 - y, Button=LeftMouseButton, 0);
+  CGE_MouseUp(ContextHandle, x, OpenGLControl1.Height - 1 - y, Button=LeftMouseButton, 0);
 end;
 
 procedure TForm1.OpenGLControl1MouseWheel(Sender: TObject; Shift: TShiftState;
   WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
 begin
-  CGE_MouseWheel(WheelDelta, true);
+  CGE_MouseWheel(ContextHandle, WheelDelta, true);
   Handled := true;
 end;
 
 procedure TForm1.IdleFunc(Sender: TObject; var Done: Boolean);
 begin
-  CGE_Update();
+  CGE_Update(ContextHandle);
   Done:=false;
 end;
 
 procedure TForm1.OpenGLControl1Paint(Sender: TObject);
 begin
   OpenGLControl1.MakeCurrent();
-  CGE_Render();
+  CGE_Render(ContextHandle);
   OpenGLControl1.SwapBuffers;
 end;
 
@@ -314,7 +315,7 @@ var
 begin
   sFile := ExtractFilePath(Application.ExeName) + 'cge_test_screenshot.png';
   StrPCopy(csFile, sFile);
-  CGE_SaveScreenshotToFile(@csFile[0]);
+  CGE_SaveScreenshotToFile(ContextHandle, @csFile[0]);
 end;
 
 procedure TForm1.BtnOpenClick(Sender: TObject);
@@ -333,7 +334,7 @@ begin
   begin
     StrPCopy(csFile, OpenDialog1.Filename);
 
-    CGE_LoadSceneFromFile(@csFile[0]);
+    CGE_LoadSceneFromFile(ContextHandle, @csFile[0]);
 
     UpdateUIAfterOpen;
   end;
@@ -351,7 +352,7 @@ procedure TForm1.BtnWalkClick(Sender: TObject);
 begin
   if bIgnoreNotifications then exit;
 
-  CGE_SetNavigationType((Sender as TToggleBox).Tag);
+  CGE_SetNavigationType(ContextHandle, (Sender as TToggleBox).Tag);
   UpdateNavigationButtons;
 end;
 
@@ -363,7 +364,7 @@ begin
   bOldIgnore := bIgnoreNotifications;
   bIgnoreNotifications := true;
 
-  iType := CGE_GetNavigationType();
+  iType := CGE_GetNavigationType(ContextHandle);
   BtnNavWalk.Checked := (iType = ecgenavWalk);
   BtnNavFly.Checked := (iType = ecgenavFly);
   BtnNavExamine.Checked := (iType = ecgenavExamine);
@@ -382,10 +383,10 @@ begin
   bIgnoreNotifications := true;
 
   CbViewpoints.Items.Clear;
-  nCount := CGE_GetViewpointsCount();
+  nCount := CGE_GetViewpointsCount(ContextHandle);
   for i := 0 to nCount-1 do
   begin
-    CGE_GetViewpointName(i, @csName[0], 260);
+    CGE_GetViewpointName(ContextHandle, i, @csName[0], 260);
     CbViewpoints.Items.Add(csName);
   end;
 
@@ -396,7 +397,7 @@ procedure TForm1.CbViewpointsChange(Sender: TObject);
 begin
   if bIgnoreNotifications then exit;
 
-  CGE_MoveToViewpoint(CbViewpoints.ItemIndex, true);
+  CGE_MoveToViewpoint(ContextHandle, CbViewpoints.ItemIndex, true);
 end;
 
 end.
