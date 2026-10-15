@@ -55,6 +55,10 @@ void GLWidget::OpenScene(QString const &sFilename)
     if (!m_bAfterInit)
         return;
 
+    // be sure we have the right context set
+    if (QOpenGLContext::currentContext() != context())
+        makeCurrent();
+
     CGE_LoadSceneFromFile(m_iCgeContext, sFilename.toUtf8());
     double dPixRatio = devicePixelRatioF();
     CGE_Resize(m_iCgeContext, width()*dPixRatio, height()*dPixRatio);
@@ -65,6 +69,9 @@ void GLWidget::CloseCGEContext()
 {
     if (m_iCgeContext != -1)
     {
+        if (QOpenGLContext::currentContext() != context())
+            makeCurrent();
+
         s_contextWidgets.remove(m_iCgeContext);
         CGE_Close(m_iCgeContext, true);
         m_iCgeContext = -1;

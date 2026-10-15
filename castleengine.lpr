@@ -387,6 +387,7 @@ begin
   try
     Ctx := CGE_FindContextByHandle(ContextHandle);
     if not CGE_VerifyWindow('CGE_Update', Ctx) then exit;
+    Application.MainWindow := Ctx.Window;
 
     { Call LibraryCallbackProc(ecgelibNavigationTypeChanged,...) when necessary.
       For this, we just query the Viewport.NavigationType every frame. }
@@ -526,6 +527,7 @@ begin
   Ctx := CGE_FindContextByHandle(ContextHandle);
   if (Ctx = nil) or (Ctx.Window = nil) then exit;
   try
+    Application.MainWindow := Ctx.Window;
     FreeAndNil(Ctx.MainScene); // if any previous scene exists, remove it
 
     Ctx.MainScene := TCastleScene.Create(Ctx.Window);
