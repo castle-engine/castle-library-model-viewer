@@ -10,6 +10,9 @@ The library allows to load and render models in an application written in any pr
 
 *Note for [Pascal](https://castle-engine.io/why_pascal) developers:* You should not use this library, in short :) Instead use [full Castle Game Engine API in Pascal](https://castle-engine.io/), which is much more powerful (can manage any number of scenes, transformations, creatures, viewports, lights, user interface, physics, sound and more). This library is designed for a more limited purpose: load and render a single model at a time.
 
+![Multi window Qt Library Tester](examples/qt_library_tester/multi-window-qt_library_tester.png)<br/>
+_Multi window Qt Library Tester in C++_
+
 ## Compiling
 
 Enter this directory, and run `./castleengine_compile.sh` shell script.

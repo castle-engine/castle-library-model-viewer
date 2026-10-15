@@ -4,13 +4,21 @@ This uses _Castle Game Engine_ packed in a dynamic library, that exposes a simpl
 
 You can use `QOpenGLWindow` or `QOpenGLWidget` as a base class for the rendering. While deriving from QOpenGLWidget is more straightforward when you need to use Qt toolbars or other Qt widgets next to the OpenGL content, we use QOpenGLWindow inside windowContainer instead. The reason is, `QOpenGLWidget::initializeGL()` is done with temporary offscreen framebuffer with different format, that may initialise some values in CGE wrong (e.g. `TGLFeatures.CurrentMultiSampling`, disabling multisampling in ScreenEffect shaders). QOpenGLWindow uses the native framebuffer from start. If you don't need advanced effects, using QOpenGLWidget is OK.
 
+When using multiple OpenGL windows, make sure that you properly manage context switching. Also Castle Game Engine requires contexts to share resources, so you should create them with the `QOpenGLContext::shareContext` mechanism, or declare `QApplication::setAttribute(Qt::AA_ShareOpenGLContexts);`.
+
 Note: The library (for now) exposes only a tiny subset of _Castle Game Engine_ possibilities. To write full-featured games using CGE, you should instead use _Object Pascal_ and link with CGE Pascal units, instead of using CGE library. However, the library is a reasonable approach if you simply want to load / display / manipulate a single 3D model.
+
+## About qt_library_tester
+
+This example demonstrates how to use the Castle Game Engine within a Qt Widgets C++ application. To make it more complicated we use multiple OpenGL windows in MDI architecture and let user open and navigate multiple 3D scenes or models simultaneously.
+
+![Multi window Qt Library Tester](multi-window-qt_library_tester.png)
 
 ## How to compile
 
 - First compile _Castle Game Engine_ dynamic library to load and visualize 3D models.
 
-    See `../README.md` .
+    See [../README.md](../README.md) .
 
 - Install <a href="https://www.qt.io/download">Qt Creator</a>.
 
