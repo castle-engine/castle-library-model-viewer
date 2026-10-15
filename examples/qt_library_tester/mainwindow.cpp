@@ -143,7 +143,7 @@ void MainWindow::OpenSceneInNewWindow(QString const& sFilename)
     QMdiSubWindow *pSubWindow = m_pMdiArea->addSubWindow(pSceneWindow);
     pSubWindow->setAttribute(Qt::WA_DeleteOnClose, true);
     pSubWindow->setWindowTitle(QFileInfo(sFilename).fileName());
-    pSubWindow->resize(400, 300);
+    pSubWindow->resize(440, 300);
     pSubWindow->show();
     m_pMdiArea->setActiveSubWindow(pSubWindow);
     pGlWidget->OpenScene(sFilename);

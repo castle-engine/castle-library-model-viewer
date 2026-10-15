@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>636</width>
-    <height>439</height>
+    <width>958</width>
+    <height>747</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,8 +19,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>636</width>
-     <height>30</height>
+     <width>958</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -62,6 +62,9 @@
   <action name="actionOpen">
    <property name="text">
     <string>Open...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
    </property>
   </action>
   <action name="actionOpenGL_Information">
