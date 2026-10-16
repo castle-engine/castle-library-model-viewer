@@ -33,7 +33,7 @@
 
 library castleengine;
 
-uses CTypes, Math, SysUtils, CastleUtils,
+uses CTypes, Math, SysUtils, CastleUtils, Generics.Collections,
   Classes, Contnrs, CastleKeysMouse, CastleCameras, CastleVectors, CastleGLUtils, CastleGLVersion,
   CastleImages, CastleSceneCore, CastleUIControls, X3DNodes, X3DFields, X3DLoad, CastleLog,
   CastleBoxes, CastleControls, CastleInputs, CastleApplicationProperties,
@@ -41,7 +41,10 @@ uses CTypes, Math, SysUtils, CastleUtils,
 
 type
   ppcchar = ^pcchar;
-  TCgeLibraryCallbackProc = function (ContextHandle: cInt32; eCode: cInt32; iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
+
+  TContextHandle = cInt32;
+
+  TCgeLibraryCallbackProc = function (ContextHandle: TContextHandle; eCode: cInt32; iParam1, iParam2: cInt32; szParam: pcchar): cInt32; cdecl;
 
   TLibraryContext = class;
 
@@ -61,7 +64,7 @@ type
 
   TLibraryContext = class(TObject)
   public
-    Handle: cInt32;
+    Handle: TContextHandle;
     Window: TCastleWindow;
     { Using TCastleAutoNavigationViewport in this case is justified,
       it is the most straightforward solution to make viewport navigation
@@ -79,9 +82,11 @@ type
     destructor Destroy; override;
   end;
 
+  TContextDictionary = {$ifdef FPC}specialize{$endif} TObjectDictionary<TContextHandle, TLibraryContext>;
+
 var
-  ContextList: TObjectList = nil;
-  NextContextHandle: cInt32 = 1;
+  Contexts: TContextDictionary;
+  NextContextHandle: TContextHandle = 1;
 
 constructor TLibraryContext.Create;
 begin
@@ -95,33 +100,24 @@ begin
   inherited;
 end;
 
-function CGE_FindContextByHandle(const ContextHandle: cInt32): TLibraryContext;
-var
-  I: Integer;
-  Ctx: TLibraryContext;
+function CGE_FindContextByHandle(const ContextHandle: TContextHandle): TLibraryContext;
 begin
   Result := nil;
-  if (ContextList = nil) or (ContextList.Count = 0) then
+  if Contexts = nil then
     exit;
-  for I := 0 to ContextList.Count - 1 do
-  begin
-    Ctx := TLibraryContext(ContextList[I]);
-    if Ctx.Handle = ContextHandle then
-      exit(Ctx);
-  end;
+  if not Contexts.TryGetValue(ContextHandle, Result) then
+    Result := nil;
 end;
 
 function CGE_FindContextByWindow(Window: TCastleWindow): TLibraryContext;
 var
-  I: Integer;
   Ctx: TLibraryContext;
 begin
   Result := nil;
-  if (ContextList = nil) or (ContextList.Count = 0) then
+  if Contexts = nil then
     exit;
-  for I := 0 to ContextList.Count - 1 do
+  for Ctx in Contexts.Values do
   begin
-    Ctx := TLibraryContext(ContextList[I]);
     if Ctx.Window = Window then
       exit(Ctx);
   end;
@@ -132,20 +128,15 @@ begin
   Result := TLibraryContext.Create;
   Result.Handle := NextContextHandle;
   Inc(NextContextHandle);
-  ContextList.Add(Result);
+  Contexts.Add(Result.Handle, Result);
 end;
 
 procedure CGE_ContextDestroy(Ctx: TLibraryContext); cdecl;
-var
-  Index: Integer;
 begin
   try
-    if (Ctx = nil) or (ContextList = nil) then
+    if (Ctx = nil) or (Contexts = nil) then
       Exit;
-
-    Index := ContextList.IndexOf(Ctx);
-    if Index >= 0 then
-      ContextList.Delete(Index);    // also calls Destroy on the object, as the list owns them
+    Contexts.Remove(Ctx.Handle); // also calls Destroy on the object, as the dictionary owns them
   except
     on E: TObject do WritelnWarning('Window', 'CGE_ContextDestroy: ' + ExceptMessage(E));
   end;
@@ -181,8 +172,8 @@ end;
 
 procedure CGE_Initialize(ApplicationConfigDirectory: PChar); cdecl;
 begin
-  if ContextList = nil then
-    ContextList := TObjectList.Create;
+  if Contexts = nil then
+    Contexts := TContextDictionary.Create([doOwnsValues]);
   CGEApp_Initialize(ApplicationConfigDirectory);
   TCastleWindow.LibrarySetMultipleWindowsPossible(true);
 end;
@@ -190,14 +181,10 @@ end;
 procedure CGE_Finalize(); cdecl;
 begin
   CGEApp_Finalize();
-  if ContextList <> nil then
-  begin
-    ContextList.Free;
-    ContextList := nil;
-  end;
+  FreeAndNil(Contexts);
 end;
 
-function CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32): cInt32; cdecl;
+function CGE_Open(flags: cUInt32; InitialWidth, InitialHeight, Dpi: cUInt32): TContextHandle; cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -245,7 +232,7 @@ begin
   end;
 end;
 
-procedure CGE_Close(ContextHandle: cInt32; QuitWhenNoOpenWindows: CBool); cdecl;
+procedure CGE_Close(ContextHandle: TContextHandle; QuitWhenNoOpenWindows: CBool); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -291,7 +278,7 @@ begin
   end;
 end;
 
-procedure CGE_Resize(ContextHandle: cInt32; uiViewWidth, uiViewHeight: cUInt32); cdecl;
+procedure CGE_Resize(ContextHandle: TContextHandle; uiViewWidth, uiViewHeight: cUInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -305,7 +292,7 @@ begin
   end;
 end;
 
-procedure CGE_Render(ContextHandle: cInt32); cdecl;
+procedure CGE_Render(ContextHandle: TContextHandle); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -319,7 +306,7 @@ begin
   end;
 end;
 
-procedure CGE_SaveScreenshotToFile(ContextHandle: cInt32; szFile: pcchar); cdecl;
+procedure CGE_SaveScreenshotToFile(ContextHandle: TContextHandle; szFile: pcchar); cdecl;
 var
   Ctx: TLibraryContext;
   Image: TRGBImage;
@@ -348,15 +335,13 @@ function CGE_InternalLibraryCallback(eCode, iParam1, iParam2: cInt32; szParam: p
 var
   Ctx: TLibraryContext;
   Window: TCastleWindow;  // this should be a function parameter
-  I: Integer;
 begin
   Window := Application.MainWindow; // TODO: extend TLibraryCallbackProc with Window (Sender) parameter
   if Window = nil then
   begin
     // when Window is nil, pass to all callbacks
-    for I := 0 to ContextList.Count - 1 do
+    for Ctx in Contexts.Values do
     begin
-      Ctx := TLibraryContext(ContextList[I]);
       if Assigned(Ctx.LibraryCallbackProc) then
         Ctx.LibraryCallbackProc(-1, eCode, iParam1, iParam2, szParam);
     end;
@@ -370,7 +355,7 @@ begin
     Result := 0;
 end;
 
-procedure CGE_SetLibraryCallbackProc(ContextHandle: cInt32; aProc: TCgeLibraryCallbackProc); cdecl;
+procedure CGE_SetLibraryCallbackProc(ContextHandle: TContextHandle; aProc: TCgeLibraryCallbackProc); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -380,7 +365,7 @@ begin
   CGEApp_SetLibraryCallbackProc(@CGE_InternalLibraryCallback);
 end;
 
-procedure CGE_Update(ContextHandle: cInt32); cdecl;
+procedure CGE_Update(ContextHandle: TContextHandle); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -433,7 +418,7 @@ begin
   end;
 end;
 
-procedure CGE_MouseDown(ContextHandle: cInt32; X, Y: CInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl;
+procedure CGE_MouseDown(ContextHandle: TContextHandle; X, Y: CInt32; bLeftBtn: cBool; FingerIndex: CInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -447,7 +432,7 @@ begin
   end;
 end;
 
-procedure CGE_Motion(ContextHandle: cInt32; X, Y: CInt32; FingerIndex: CInt32); cdecl;
+procedure CGE_Motion(ContextHandle: TContextHandle; X, Y: CInt32; FingerIndex: CInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -461,7 +446,7 @@ begin
   end;
 end;
 
-procedure CGE_MouseUp(ContextHandle: cInt32; X, Y: cInt32; bLeftBtn: cBool;
+procedure CGE_MouseUp(ContextHandle: TContextHandle; X, Y: cInt32; bLeftBtn: cBool;
   FingerIndex: CInt32); cdecl;
 var
   Ctx: TLibraryContext;
@@ -476,7 +461,7 @@ begin
   end;
 end;
 
-procedure CGE_MouseWheel(ContextHandle: cInt32; zDelta: cFloat; bVertical: cBool); cdecl;
+procedure CGE_MouseWheel(ContextHandle: TContextHandle; zDelta: cFloat; bVertical: cBool); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -492,7 +477,7 @@ begin
   end;
 end;
 
-procedure CGE_KeyDown(ContextHandle: cInt32; eKey: CInt32); cdecl;
+procedure CGE_KeyDown(ContextHandle: TContextHandle; eKey: CInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -506,7 +491,7 @@ begin
   end;
 end;
 
-procedure CGE_KeyUp(ContextHandle: cInt32; eKey: CInt32); cdecl;
+procedure CGE_KeyUp(ContextHandle: TContextHandle; eKey: CInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -520,7 +505,7 @@ begin
   end;
 end;
 
-procedure CGE_LoadSceneFromFile(ContextHandle: cInt32; szFile: pcchar); cdecl;
+procedure CGE_LoadSceneFromFile(ContextHandle: TContextHandle; szFile: pcchar); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -550,7 +535,7 @@ begin
   end;
 end;
 
-procedure CGE_SaveSceneToFile(ContextHandle: cInt32; szFile: pcchar; eUrlProcessing: cInt32); cdecl;
+procedure CGE_SaveSceneToFile(ContextHandle: TContextHandle; szFile: pcchar; eUrlProcessing: cInt32); cdecl;
 var
   SaveFileName: string;
   UrlProcessing: TUrlProcessing;
@@ -595,7 +580,7 @@ begin
   end;
 end;
 
-function CGE_GetViewpointsCount(ContextHandle: cInt32): cInt32; cdecl;
+function CGE_GetViewpointsCount(ContextHandle: TContextHandle): cInt32; cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -617,7 +602,7 @@ begin
   end;
 end;
 
-procedure CGE_GetViewpointName(ContextHandle: cInt32; iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl;
+procedure CGE_GetViewpointName(ContextHandle: TContextHandle; iViewpointIdx: cInt32; szName: pchar; nBufSize: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   sName: string;
@@ -633,7 +618,7 @@ begin
   end;
 end;
 
-procedure CGE_MoveToViewpoint(ContextHandle: cInt32; iViewpointIdx: cInt32; bAnimated: cBool); cdecl;
+procedure CGE_MoveToViewpoint(ContextHandle: TContextHandle; iViewpointIdx: cInt32; bAnimated: cBool); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -647,7 +632,7 @@ begin
   end;
 end;
 
-procedure CGE_AddViewpointFromCurrentView(ContextHandle: cInt32; szName: pcchar); cdecl;
+procedure CGE_AddViewpointFromCurrentView(ContextHandle: TContextHandle; szName: pcchar); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -662,7 +647,7 @@ begin
   end;
 end;
 
-procedure CGE_GetBoundingBox(ContextHandle: cInt32; pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl;
+procedure CGE_GetBoundingBox(ContextHandle: TContextHandle; pfXMin, pfXMax, pfYMin, pfYMax, pfZMin, pfZMax: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   BBox: TBox3D;
@@ -680,8 +665,11 @@ begin
   end;
 end;
 
-procedure CGE_GetViewCoords(ContextHandle: cInt32; pfPosX, pfPosY, pfPosZ, pfDirX, pfDirY, pfDirZ,
-                            pfUpX, pfUpY, pfUpZ, pfGravX, pfGravY, pfGravZ: pcfloat); cdecl;
+procedure CGE_GetViewCoords(ContextHandle: TContextHandle;
+  pfPosX, pfPosY, pfPosZ,
+  pfDirX, pfDirY, pfDirZ,
+  pfUpX, pfUpY, pfUpZ,
+  pfGravX, pfGravY, pfGravZ: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   Pos, Dir, Up, GravityUp: TVector3;
@@ -701,9 +689,12 @@ begin
   end;
 end;
 
-procedure CGE_MoveViewToCoords(ContextHandle: cInt32; fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ,
-                               fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ: cFloat;
-                               bAnimated: cBool); cdecl;
+procedure CGE_MoveViewToCoords(ContextHandle: TContextHandle;
+  fPosX, fPosY, fPosZ,
+  fDirX, fDirY, fDirZ,
+  fUpX, fUpY, fUpZ,
+  fGravX, fGravY, fGravZ: cFloat;
+  bAnimated: cBool); cdecl;
 var
   Ctx: TLibraryContext;
   Pos, Dir, Up, GravityUp: TVector3;
@@ -726,8 +717,8 @@ begin
   end;
 end;
 
-procedure CGE_SetNavigationInputShortcut(ContextHandle: cInt32; eInput, eKey1, eKey2,
-                               eMouseButton, eMouseWheel: cInt32); cdecl;
+procedure CGE_SetNavigationInputShortcut(ContextHandle: TContextHandle;
+  eInput, eKey1, eKey2, eMouseButton, eMouseWheel: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   Nav: TCastleNavigation;
@@ -812,7 +803,7 @@ begin
   end;
 end;
 
-function CGE_GetNavigationType(ContextHandle: cInt32): cInt32; cdecl;
+function CGE_GetNavigationType(ContextHandle: TContextHandle): cInt32; cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -838,7 +829,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNavigationType(ContextHandle: cInt32; NewType: cInt32); cdecl;
+procedure CGE_SetNavigationType(ContextHandle: TContextHandle; NewType: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   aNavType: TNavigationType;
@@ -885,7 +876,7 @@ begin
   end;
 end;
 
-procedure CGE_SetTouchInterface(ContextHandle: cInt32; eMode: cInt32); cdecl;
+procedure CGE_SetTouchInterface(ContextHandle: TContextHandle; eMode: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -898,7 +889,7 @@ begin
   end;
 end;
 
-procedure CGE_SetAutoTouchInterface(ContextHandle: cInt32; bAutomaticTouchInterface: cBool); cdecl;
+procedure CGE_SetAutoTouchInterface(ContextHandle: TContextHandle; bAutomaticTouchInterface: cBool); cdecl;
 var
   Ctx: TLibraryContext;
 begin
@@ -911,7 +902,7 @@ begin
   end;
 end;
 
-procedure CGE_SetWalkNavigationMouseDragMode(ContextHandle: cInt32; eMode: cInt32); cdecl;
+procedure CGE_SetWalkNavigationMouseDragMode(ContextHandle: TContextHandle; eMode: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   NewMode: TMouseDragMode;
@@ -931,7 +922,7 @@ begin
   end;
 end;
 
-procedure CGE_IncreaseSceneTime(ContextHandle: cInt32; fTimeS: cFloat); cdecl;
+procedure CGE_IncreaseSceneTime(ContextHandle: TContextHandle; fTimeS: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   DummyRemoveType: TRemoveType;
@@ -959,7 +950,7 @@ begin
     Result := nil;
 end;
 
-procedure CGE_SetVariableInt(ContextHandle: cInt32; eVar: cInt32; nValue: cInt32); cdecl;
+procedure CGE_SetVariableInt(ContextHandle: TContextHandle; eVar: cInt32; nValue: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   WalkNavigation: TCastleWalkNavigation;
@@ -1053,7 +1044,7 @@ begin
   end;
 end;
 
-function CGE_GetVariableInt(ContextHandle: cInt32; eVar: cInt32): cInt32; cdecl;
+function CGE_GetVariableInt(ContextHandle: TContextHandle; eVar: cInt32): cInt32; cdecl;
 var
   Ctx: TLibraryContext;
   WalkNavigation: TCastleWalkNavigation;
@@ -1170,7 +1161,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFFloat(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFFloat(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; value: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1186,7 +1177,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFDouble(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFDouble(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; value: cDouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1202,7 +1193,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFInt32(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cInt32); cdecl;
+procedure CGE_SetNodeFieldValue_SFInt32(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; value: cInt32); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1218,7 +1209,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFBool(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; value: cBool); cdecl;
+procedure CGE_SetNodeFieldValue_SFBool(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; value: cBool); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1234,7 +1225,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFString(ContextHandle: cInt32; szNodeName, szFieldName, szValue: pcchar); cdecl;
+procedure CGE_SetNodeFieldValue_SFString(ContextHandle: TContextHandle; szNodeName, szFieldName, szValue: pcchar); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1250,7 +1241,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec2f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec2f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1266,7 +1257,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec3f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec3f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2, val3: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1282,7 +1273,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec4f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec4f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1298,7 +1289,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec2d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec2d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2: cDouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1314,7 +1305,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec3d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec3d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2, val3: cDouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1330,7 +1321,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFVec4d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl;
+procedure CGE_SetNodeFieldValue_SFVec4d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; val1, val2, val3, val4: cDouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1346,7 +1337,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_SFRotation(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl;
+procedure CGE_SetNodeFieldValue_SFRotation(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; axisX, axisY, axisZ, rotation: cFloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1362,7 +1353,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFFloat(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFFloat(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1384,7 +1375,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFDouble(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFDouble(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1406,7 +1397,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFInt32(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcInt32); cdecl;
+procedure CGE_SetNodeFieldValue_MFInt32(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcInt32); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1428,7 +1419,7 @@ begin
   end;
 end;
 
-procedure CGE_SetNodeFieldValue_MFBool(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl;
+procedure CGE_SetNodeFieldValue_MFBool(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcbool); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1451,7 +1442,7 @@ begin
 end;
 
 // Set MFVec2f. We expect "2 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec2f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec2f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1474,7 +1465,7 @@ begin
 end;
 
 // Set MFVec3f. We expect "3 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec3f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec3f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1497,7 +1488,7 @@ begin
 end;
 
 // Set MFVec4f. We expect "4 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec4f(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec4f(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1520,7 +1511,7 @@ begin
 end;
 
 // Set MFVec2f. We expect "2 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec2d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec2d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1543,7 +1534,7 @@ begin
 end;
 
 // Set MFVec3f. We expect "3 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec3d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec3d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1566,7 +1557,7 @@ begin
 end;
 
 // Set MFVec4f. We expect "4 * count" doubles in the array "values"
-procedure CGE_SetNodeFieldValue_MFVec4d(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
+procedure CGE_SetNodeFieldValue_MFVec4d(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcdouble); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1589,7 +1580,7 @@ begin
 end;
 
 // Set MFRotation. We expect "4 * count" floats in the array "values"
-procedure CGE_SetNodeFieldValue_MFRotation(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
+procedure CGE_SetNodeFieldValue_MFRotation(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: pcfloat); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
@@ -1612,7 +1603,7 @@ begin
 end;
 
 // Set MFString. We expect array of "count" char* pointers to null-terminated UTF-8 strings
-procedure CGE_SetNodeFieldValue_MFString(ContextHandle: cInt32; szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl;
+procedure CGE_SetNodeFieldValue_MFString(ContextHandle: TContextHandle; szNodeName, szFieldName: pcchar; iCount: cInt32; values: ppcchar); cdecl;
 var
   Ctx: TLibraryContext;
   aField: TX3DField;
