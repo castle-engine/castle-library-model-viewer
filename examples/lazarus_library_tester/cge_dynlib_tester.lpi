@@ -60,9 +60,6 @@
             <Verbosity>
               <ShowHints Value="False"/>
             </Verbosity>
-            <ConfigFile>
-              <ConfigFilePath Value="../../../castle-engine/castle-fpc.cfg"/>
-            </ConfigFile>
           </Other>
         </CompilerOptions>
       </Item2>
@@ -104,9 +101,6 @@
             <Verbosity>
               <ShowHints Value="False"/>
             </Verbosity>
-            <ConfigFile>
-              <ConfigFilePath Value="../../../castle-engine/castle-fpc.cfg"/>
-            </ConfigFile>
           </Other>
         </CompilerOptions>
       </Item3>
@@ -173,9 +167,6 @@
       <Verbosity>
         <ShowHints Value="False"/>
       </Verbosity>
-      <ConfigFile>
-        <ConfigFilePath Value="../../../castle-engine/castle-fpc.cfg"/>
-      </ConfigFile>
     </Other>
   </CompilerOptions>
   <Debugging>
