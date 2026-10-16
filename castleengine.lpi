@@ -28,8 +28,8 @@
             <Filename Value="castleengine"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\common_includes"/>
-            <OtherUnitFiles Value="..\window;..\deprecated_units"/>
+            <IncludeFiles Value="$(ProjOutDir);../castle-engine/src/common_includes"/>
+            <OtherUnitFiles Value="../castle-engine/src/window;../castle-engine/src/deprecated_units"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -65,7 +65,8 @@
               <ShowHints Value="False"/>
             </Verbosity>
             <ConfigFile>
-              <ConfigFilePath Value="..\..\castle-fpc.cfg"/>
+              <CustomConfigFile Value="True"/>
+              <ConfigFilePath Value="../castle-engine/castle-fpc-messages.cfg"/>
             </ConfigFile>
             <CustomOptions Value="-dCASTLE_WINDOW_LIBRARY"/>
           </Other>
@@ -80,7 +81,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
-            <OtherUnitFiles Value="..\window;..\deprecated_units"/>
+            <OtherUnitFiles Value="../castle-engine/src/window;../castle-engine/src/deprecated_units"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -105,7 +106,8 @@
               <ShowHints Value="False"/>
             </Verbosity>
             <ConfigFile>
-              <ConfigFilePath Value="..\..\castle-fpc.cfg"/>
+              <CustomConfigFile Value="True"/>
+              <ConfigFilePath Value="../castle-engine/castle-fpc-messages.cfg"/>
             </ConfigFile>
             <CustomOptions Value="-dCASTLE_WINDOW_LIBRARY"/>
           </Other>
@@ -132,7 +134,7 @@
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="..\window\castlewindow.pas"/>
+        <Filename Value="../castle-engine/src/window\castlewindow.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="CastleWindow"/>
       </Unit1>
@@ -145,8 +147,8 @@
       <Filename Value="castleengine"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\common_includes"/>
-      <OtherUnitFiles Value="..\window;..\window\deprecated_units"/>
+      <IncludeFiles Value="$(ProjOutDir);../castle-engine/src/common_includes"/>
+      <OtherUnitFiles Value="../castle-engine/src/window;../castle-engine/src/window\deprecated_units"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Conditionals Value="if TargetOS = &apos;darwin&apos; then
@@ -170,7 +172,8 @@
         <ShowHints Value="False"/>
       </Verbosity>
       <ConfigFile>
-        <ConfigFilePath Value="..\..\castle-fpc.cfg"/>
+        <CustomConfigFile Value="True"/>
+        <ConfigFilePath Value="../castle-engine/castle-fpc-messages.cfg"/>
       </ConfigFile>
       <CustomOptions Value="-dCASTLE_WINDOW_LIBRARY"/>
     </Other>
