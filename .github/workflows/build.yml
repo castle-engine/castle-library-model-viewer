@@ -116,7 +116,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: pguyot/arm-runner-action@v2
+      - uses: castle-engine/arm-runner-action@castle-current
         with:
           base_image: ${{ matrix.base_image }}
           cpu: ${{ matrix.cpu }}
@@ -126,7 +126,7 @@ jobs:
           # Avoids the need for copy_artifact_path later.
           bind_mount_repository: true
           commands: |
-            # Useful string to grep logs, because log of script execution is somewhat buried in the middle of pguyot/arm-runner-action log
+            # Useful string to grep logs, because log of script execution is somewhat buried in the middle of arm-runner-action log
             echo 'CGE script starts here'
 
             # Install Linux dependencies
