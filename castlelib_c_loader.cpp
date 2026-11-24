@@ -47,7 +47,7 @@
 typedef void (CDECL *PFNRD_CGE_Initialize)(const char *applicationConfigDirectory);
 typedef void (CDECL *PFNRD_CGE_Finalize)();
 typedef int (CDECL *PFNRD_CGE_Open)(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, unsigned uiDpi);
-typedef void (CDECL *PFNRD_CGE_Close)(int contextHandle, bool quitWhenLastWindowClosed);
+typedef void (CDECL *PFNRD_CGE_Close)(int contextHandle, cgeBool quitWhenLastWindowClosed);
 typedef void (CDECL *PFNRD_CGE_GetOpenGLInformation)(char *szBuffer, int nBufSize);
 typedef void (CDECL *PFNRD_CGE_GetCastleEngineVersion)(char *szBuffer, int nBufSize);
 
@@ -57,10 +57,10 @@ typedef void (CDECL *PFNRD_CGE_SaveScreenshotToFile)(int contextHandle, const ch
 typedef void (CDECL *PFNRD_CGE_SetLibraryCallbackProc)(int contextHandle, TCgeLibraryCallback pProc);
 typedef void (CDECL *PFNRD_CGE_Update)(int contextHandle);
 
-typedef void (CDECL *PFNRD_CGE_MouseDown)(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
+typedef void (CDECL *PFNRD_CGE_MouseDown)(int contextHandle, int x, int y, cgeBool bLeftBtn, int nFingerIdx);
 typedef void (CDECL *PFNRD_CGE_Motion)(int contextHandle, int x, int y, int nFingerIdx);
-typedef void (CDECL *PFNRD_CGE_MouseUp)(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx);
-typedef void (CDECL *PFNRD_CGE_MouseWheel)(int contextHandle, float zDelta, bool bVertical);
+typedef void (CDECL *PFNRD_CGE_MouseUp)(int contextHandle, int x, int y, cgeBool bLeftBtn, int nFingerIdx);
+typedef void (CDECL *PFNRD_CGE_MouseWheel)(int contextHandle, float zDelta, cgeBool bVertical);
 
 typedef void (CDECL *PFNRD_CGE_KeyDown)(int contextHandle, int eKey);
 typedef void (CDECL *PFNRD_CGE_KeyUp)(int contextHandle, int eKey);
@@ -70,20 +70,20 @@ typedef void (CDECL *PFNRD_CGE_SaveSceneToFile)(int contextHandle, const char *s
 
 typedef int (CDECL *PFNRD_CGE_GetViewpointsCount)(int contextHandle);
 typedef void (CDECL *PFNRD_CGE_GetViewpointName)(int contextHandle, int iViewpointIdx, char *szName, int nBufSize);
-typedef void (CDECL *PFNRD_CGE_MoveToViewpoint)(int contextHandle, int iViewpointIdx, bool bAnimated);
+typedef void (CDECL *PFNRD_CGE_MoveToViewpoint)(int contextHandle, int iViewpointIdx, cgeBool bAnimated);
 typedef void (CDECL *PFNRD_CGE_AddViewpointFromCurrentView)(int contextHandle, const char *szName);
 typedef void (CDECL *PFNRD_CGE_GetBoundingBox)(int contextHandle, float *pfXMin, float *pfXMax, float *pfYMin, float *pfYMax, float *pfZMin, float *pfZMax);
 typedef void (CDECL *PFNRD_CGE_GetViewCoords)(int contextHandle, float *pfPosX, float *pfPosY, float *pfPosZ, float *pfDirX, float *pfDirY, float *pfDirZ,
                                                 float *pfUpX, float *pfUpY, float *pfUpZ, float *pfGravX, float *pfGravY, float *pfGravZ);
 typedef void (CDECL *PFNRD_CGE_MoveViewToCoords)(int contextHandle, float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
-                                                   float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, bool bAnimated);
+                                                   float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, cgeBool bAnimated);
 
 typedef void (CDECL *PFNRD_CGE_SetNavigationInputShortcut)(int contextHandle, int eInput, int eKey1, int eKey2, int eMouseButton, int eMouseWheel);
 
 typedef int (CDECL *PFNRD_CGE_GetNavigationType)(int contextHandle);
 typedef void (CDECL *PFNRD_CGE_SetNavigationType)(int contextHandle, int eNewType);
 typedef void (CDECL *PFNRD_CGE_SetTouchInterface)(int contextHandle, int eMode);
-typedef void (CDECL *PFNRD_CGE_SetAutoTouchInterface)(int contextHandle, bool bAutomaticTouchInterface);
+typedef void (CDECL *PFNRD_CGE_SetAutoTouchInterface)(int contextHandle, cgeBool bAutomaticTouchInterface);
 typedef void (CDECL *PFNRD_CGE_SetWalkNavigationMouseDragMode)(int contextHandle, int eMode);
 
 typedef void (CDECL *PFNRD_CGE_SetVariableInt)(int contextHandle, int eVar, int nValue);
@@ -91,7 +91,7 @@ typedef int (CDECL *PFNRD_CGE_GetVariableInt)(int contextHandle, int eVar);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFFloat)(int contextHandle, const char *szNodeName, const char *szFieldName, float value);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFDouble)(int contextHandle, const char *szNodeName, const char *szFieldName, double value);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFInt32)(int contextHandle, const char *szNodeName, const char *szFieldName, int value);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, bool value);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, cgeBool value);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec2f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec3f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFVec4f)(int contextHandle, const char *szNodeName, const char *szFieldName, float val1, float val2, float val3, float val4);
@@ -103,7 +103,7 @@ typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_SFString)(int contextHandle, co
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFFloat)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFDouble)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, double *values);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFInt32)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, int *values);
-typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, bool *values);
+typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFBool)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, cgeBool *values);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec2f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec3f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
 typedef void (CDECL *PFNRD_CGE_SetNodeFieldValue_MFVec4f)(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, float *values);
@@ -297,7 +297,7 @@ int CGE_Open(unsigned uiFlags, unsigned initialWidth, unsigned initialHeight, un
 }
 
 //-----------------------------------------------------------------------------
-void CGE_Close(int contextHandle, bool quitWhenLastWindowClosed)
+void CGE_Close(int contextHandle, cgeBool quitWhenLastWindowClosed)
 {
     if (pfrd_CGE_Close!=NULL)
     (*pfrd_CGE_Close)(contextHandle, quitWhenLastWindowClosed);
@@ -353,7 +353,7 @@ void CGE_Update(int contextHandle)
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseDown(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx)
+void CGE_MouseDown(int contextHandle, int x, int y, cgeBool bLeftBtn, int nFingerIdx)
 {
     if (pfrd_CGE_MouseDown!=NULL)
         (*pfrd_CGE_MouseDown)(contextHandle, x, y, bLeftBtn, nFingerIdx);
@@ -367,14 +367,14 @@ void CGE_Motion(int contextHandle, int x, int y, int nFingerIdx)
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseUp(int contextHandle, int x, int y, bool bLeftBtn, int nFingerIdx)
+void CGE_MouseUp(int contextHandle, int x, int y, cgeBool bLeftBtn, int nFingerIdx)
 {
     if (pfrd_CGE_MouseUp!=NULL)
         (*pfrd_CGE_MouseUp)(contextHandle, x, y, bLeftBtn, nFingerIdx);
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MouseWheel(int contextHandle, float zDelta, bool bVertical)
+void CGE_MouseWheel(int contextHandle, float zDelta, cgeBool bVertical)
 {
     if (pfrd_CGE_MouseWheel!=NULL)
         (*pfrd_CGE_MouseWheel)(contextHandle, zDelta, bVertical);
@@ -425,7 +425,7 @@ void CGE_GetViewpointName(int contextHandle, int iViewpointIdx, char *szName, in
 }
 
 //-----------------------------------------------------------------------------
-void CGE_MoveToViewpoint(int contextHandle, int iViewpointIdx, bool bAnimated)
+void CGE_MoveToViewpoint(int contextHandle, int iViewpointIdx, cgeBool bAnimated)
 {
     if (pfrd_CGE_MoveToViewpoint!=NULL)
         (*pfrd_CGE_MoveToViewpoint)(contextHandle, iViewpointIdx, bAnimated);
@@ -455,7 +455,7 @@ void CGE_GetViewCoords(int contextHandle, float *pfPosX, float *pfPosY, float *p
 
 //-----------------------------------------------------------------------------
 void CGE_MoveViewToCoords(int contextHandle, float fPosX, float fPosY, float fPosZ, float fDirX, float fDirY, float fDirZ,
-                          float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, bool bAnimated)
+                          float fUpX, float fUpY, float fUpZ, float fGravX, float fGravY, float fGravZ, cgeBool bAnimated)
 {
     if (pfrd_CGE_MoveViewToCoords!=NULL)
         (*pfrd_CGE_MoveViewToCoords)(contextHandle, fPosX, fPosY, fPosZ, fDirX, fDirY, fDirZ, fUpX, fUpY, fUpZ, fGravX, fGravY, fGravZ, bAnimated);
@@ -492,7 +492,7 @@ void CGE_SetTouchInterface(int contextHandle, int /*ECgeTouchCtlInterface*/ eMod
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetAutoTouchInterface(int contextHandle, bool bAutomaticTouchInterface)
+void CGE_SetAutoTouchInterface(int contextHandle, cgeBool bAutomaticTouchInterface)
 {
     if (pfrd_CGE_SetAutoTouchInterface!=NULL)
         (*pfrd_CGE_SetAutoTouchInterface)(contextHandle, bAutomaticTouchInterface);
@@ -543,7 +543,7 @@ void CGE_SetNodeFieldValue_SFInt32(int contextHandle, const char *szNodeName, co
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_SFBool(int contextHandle, const char *szNodeName, const char *szFieldName, bool value)
+void CGE_SetNodeFieldValue_SFBool(int contextHandle, const char *szNodeName, const char *szFieldName, cgeBool value)
 {
     if (pfrd_CGE_SetNodeFieldValue_SFBool!=NULL)
         (*pfrd_CGE_SetNodeFieldValue_SFBool)(contextHandle, szNodeName, szFieldName, value);
@@ -627,7 +627,7 @@ void CGE_SetNodeFieldValue_MFInt32(int contextHandle, const char *szNodeName, co
 }
 
 //-----------------------------------------------------------------------------
-void CGE_SetNodeFieldValue_MFBool(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, bool *values)
+void CGE_SetNodeFieldValue_MFBool(int contextHandle, const char *szNodeName, const char *szFieldName, int iCount, cgeBool *values)
 {
     if (pfrd_CGE_SetNodeFieldValue_MFBool!=NULL)
         (*pfrd_CGE_SetNodeFieldValue_MFBool)(contextHandle, szNodeName, szFieldName, iCount, values);
